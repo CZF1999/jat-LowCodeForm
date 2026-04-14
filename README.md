@@ -36,68 +36,18 @@ npm run preview
 
 ## 使用说明
 
-1. **添加组件**：从左侧组件库拖拽组件到画布
-2. **编辑属性**：选中组件后在右侧属性面板编辑组件属性
-3. **设置验证**：在属性面板中设置表单验证规则
+1. **添加组件**：从左侧组件库拖拽组件到画布，组件会自动排列
+2. **编辑属性**：选中组件后在右侧属性面板编辑组件属性，包括标签、占位符、默认值、验证规则等
+3. **设置验证**：在属性面板中设置表单验证规则，包括必填、长度限制、数值范围、正则表达式等
 4. **生成代码**：点击工具栏的"生成代码"按钮，查看并复制生成的代码
 
 ## 生成的代码特性
 
-- 使用 `el-form` 和 `el-form-item` 组件，符合 Element Plus 最佳实践
+- 使用 Element Plus 组件库，符合 Element Plus 最佳实践
 - 支持表单验证（`validate`）和重置（`resetFields`）
 - 自动处理禁用状态
 - 语义化的代码结构
 
-## 示例
-
-```vue
-<template>
-  <el-form :model="form" :rules="rules" ref="formRef" label-width="120px" class="generated-form">
-    <el-form-item label="输入框" prop="input">
-      <el-input v-model="form.input" placeholder="请输入" size="small" />
-    </el-form-item>
-    <el-form-item label="开关" prop="switch">
-      <el-switch v-model="form.switch" />
-    </el-form-item>
-    <div class="form-actions">
-      <el-button @click="cancelForm">取消</el-button>
-      <el-button type="primary" @click="submitForm">提交</el-button>
-    </div>
-  </el-form>
-</template>
-
-<script setup>
-import { ref } from "vue"
-
-const form = ref({
-  input: "",
-  switch: false,
-})
-
-const rules = ref({
-  input: [
-    { required: true, message: '请输入', trigger: 'blur' }
-  ],
-})
-
-const formRef = ref()
-
-const submitForm = () => {
-  formRef.value?.validate((valid) => {
-    if (valid) {
-      console.log("Form submitted:", form.value)
-    } else {
-      console.log("Validation failed:", form.value)
-    }
-  })
-}
-
-const cancelForm = () => {
-  formRef.value?.resetFields()
-  console.log("表单已重置")
-}
-</script>
-```
 
 ## 许可证
 
