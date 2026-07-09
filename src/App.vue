@@ -22,13 +22,18 @@
           <el-icon><ArrowLeft /></el-icon>
           撤销
         </el-button>
+        <el-button type="success" @click="handleExportFormConfig">
+          <el-icon><Document /></el-icon>
+          导出表单配置
+        </el-button>
         <el-button type="primary" @click="showCodeDialog = true">
           <el-icon><Document /></el-icon>
           生成代码
         </el-button>
-        <CodeGenerator 
-          :components="editorStore.components" 
+        <CodeGenerator
+          :components="editorStore.components"
           v-model:showCodeDialog="showCodeDialog"
+          :page-settings="editorStore.pageSchema.settings"
         />
       </div>
     </header>
@@ -41,12 +46,10 @@
       <!-- 中间画布区域 -->
       <div class="canvas-area">
         <div class="canvas-content">
-          <CanvasRenderer 
+          <CanvasRenderer
           :components="editorStore.components"
           :page-settings="editorStore.pageSchema.settings"
           :selected-id="editorStore.selectedId"
-          :is-dragging="editorStore.isDragging"
-          :drag-placeholder-style="editorStore.dragPlaceholderStyle"
           @select="editorStore.selectComponent"
           @delete="editorStore.deleteComponent"
           @copy="editorStore.copyComponent"
@@ -93,6 +96,7 @@ import CanvasRenderer from './core/renderer/CanvasRenderer.vue'
 import PreviewRenderer from './core/renderer/PreviewRenderer.vue'
 import PropertyPanel from './components/PropertyPanel.vue'
 import CodeGenerator from './components/CodeGenerator.vue'
+import { generateFormConfigJS } from './core/generator/FormConfigGenerator'
 import { useEditorStore } from './stores/editorStore'
 import { useDraggable } from './composables/useDraggable'
 
@@ -171,6 +175,24 @@ const getDataType = (componentType) => {
     'upload': 'file'
   }
   return typeMap[componentType] || 'string'
+}
+
+// 导出表单配置 JS
+const handleExportFormConfig = () => {
+  const components = editorStore.components
+  if (components.length === 0) {
+    ElMessage.warning('请先添加表单组件')
+    return
+  }
+  const jsCode = generateFormConfigJS(components, editorStore.pageSchema.settings)
+  const dataBlob = new Blob([jsCode], { type: 'application/javascript' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'form-config.js'
+  link.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('表单配置已导出')
 }
 
 // 导出数据结构

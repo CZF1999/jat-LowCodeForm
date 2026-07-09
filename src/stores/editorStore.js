@@ -24,7 +24,11 @@ export const useEditorStore = defineStore('editor', {
         backgroundColor: '#ffffff',
         width: '1200px',
         height: '800px',
-        meta: {}
+        meta: {},
+        // 表单级配置
+        formTitle: '表单',
+        layout: 'grid',
+        columns: 2
       },
       components: []
     },
@@ -34,6 +38,10 @@ export const useEditorStore = defineStore('editor', {
     isDragging: false,
     // 拖拽占位符样式
     dragPlaceholderStyle: {},
+    // 当前拖拽类型：'material' | 'component'
+    dragType: null,
+    // 排序插入位置索引
+    insertionIndex: -1,
     // 剪贴板
     clipboard: [],
     // 历史记录
@@ -43,12 +51,12 @@ export const useEditorStore = defineStore('editor', {
       maxSize: 50
     }
   }),
-  
+
   getters: {
     // 获取当前选中的组件
     selectedComponent: (state) => {
       if (!state.selectedId) return null
-      
+
       // 递归查找组件
       const findComponent = (components) => {
         for (const component of components) {
@@ -66,7 +74,7 @@ export const useEditorStore = defineStore('editor', {
         }
         return null
       }
-      
+
       return findComponent(state.pageSchema.components)
     },
     // 获取组件列表
@@ -86,7 +94,7 @@ export const useEditorStore = defineStore('editor', {
       return state.pageSchema.components
     }
   },
-  
+
   actions: {
     // 初始化时保存初始状态
     initializeStore() {
@@ -95,7 +103,7 @@ export const useEditorStore = defineStore('editor', {
       this.history.stack = [initialSnapshot]
       this.history.currentIndex = 0
     },
-    
+
     // 添加组件
     addComponent(component) {
       const newComponent = {
@@ -103,13 +111,43 @@ export const useEditorStore = defineStore('editor', {
         id: generateId(),
         titlePosition: component.titlePosition || 'left'
       }
-      
+
       this.pageSchema.components.push(newComponent)
       this.saveHistory()
       this.selectedId = newComponent.id
       return newComponent
     },
-    
+
+    // 在指定位置插入组件
+    insertComponentAt(component, index) {
+      const newComponent = {
+        ...component,
+        id: component.id || generateId(),
+        titlePosition: component.titlePosition || 'left'
+      }
+      const targetIndex = Math.max(0, Math.min(index, this.pageSchema.components.length))
+      this.pageSchema.components.splice(targetIndex, 0, newComponent)
+      this.saveHistory()
+      this.selectedId = newComponent.id
+      return newComponent
+    },
+
+    // 移动组件：将指定 id 的组件移动到目标索引
+    moveComponent(id, toIndex) {
+      const components = this.pageSchema.components
+      const fromIndex = components.findIndex(c => c.id === id)
+      if (fromIndex === -1) return false
+
+      const targetIndex = Math.max(0, Math.min(toIndex, components.length - 1))
+      if (fromIndex === targetIndex) return false
+
+      const [moved] = components.splice(fromIndex, 1)
+      const adjustedIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
+      components.splice(adjustedIndex, 0, moved)
+      this.saveHistory()
+      return true
+    },
+
     // 删除组件
     deleteComponent(id) {
       // 递归删除组件
@@ -126,14 +164,14 @@ export const useEditorStore = defineStore('editor', {
         }
         return false
       }
-      
+
       deleteFromComponents(this.pageSchema.components)
       this.saveHistory()
       if (this.selectedId === id) {
         this.selectedId = null
       }
     },
-    
+
     // 更新组件
     updateComponent(id, updates) {
       // 递归查找并更新组件
@@ -150,11 +188,11 @@ export const useEditorStore = defineStore('editor', {
         }
         return false
       }
-      
+
       updateComponentRecursive(this.pageSchema.components)
       this.saveHistory()
     },
-    
+
     // 复制组件
     copyComponent(component) {
       // 深拷贝组件
@@ -162,44 +200,54 @@ export const useEditorStore = defineStore('editor', {
       copied.id = generateId()
       this.clipboard = [copied]
     },
-    
+
     // 粘贴组件
     pasteComponent() {
       if (this.clipboard.length === 0) return
-      
+
       const copied = JSON.parse(JSON.stringify(this.clipboard[0]))
       copied.id = generateId()
       this.pageSchema.components.push(copied)
       this.saveHistory()
       this.selectedId = copied.id
     },
-    
+
     // 选择组件
     selectComponent(id) {
       this.selectedId = id
     },
-    
+
     // 设置拖拽状态
     setDragging(isDragging) {
       this.isDragging = isDragging
     },
-    
+
     // 设置拖拽占位符样式
     setDragPlaceholderStyle(style) {
       this.dragPlaceholderStyle = style
     },
-    
+
+    // 设置拖拽类型
+    setDragType(type) {
+      this.dragType = type
+    },
+
+    // 设置插入位置索引
+    setInsertionIndex(index) {
+      this.insertionIndex = index
+    },
+
     // 保存历史记录
     saveHistory() {
       // 限制历史记录长度
       if (this.history.currentIndex < this.history.stack.length - 1) {
         this.history.stack = this.history.stack.slice(0, this.history.currentIndex + 1)
       }
-      
+
       // 深拷贝当前状态
       const snapshot = JSON.parse(JSON.stringify(this.pageSchema))
       this.history.stack.push(snapshot)
-      
+
       // 保持历史记录在最大长度以内
       if (this.history.stack.length > this.history.maxSize) {
         this.history.stack.shift()
@@ -207,7 +255,7 @@ export const useEditorStore = defineStore('editor', {
         this.history.currentIndex++
       }
     },
-    
+
     // 撤销
     undo() {
       if (this.history.currentIndex > 0) {
@@ -217,15 +265,15 @@ export const useEditorStore = defineStore('editor', {
         Object.assign(this.pageSchema, previousState)
       }
     },
-    
 
-    
+
+
     // 导入Schema
     importSchema(schema) {
       this.pageSchema = schema
       this.saveHistory()
     },
-    
+
     // 导出Schema
     exportSchema() {
       return JSON.parse(JSON.stringify(this.pageSchema))

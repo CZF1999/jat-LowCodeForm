@@ -50,6 +50,46 @@ export interface PageSchema {
   components: ComponentSchema[]; // 根组件列表
 }
 
+// ========== 表单配置 JSON 导出类型 ==========
+
+// 校验规则
+export interface ValidationRule {
+  required?: boolean;
+  message?: string;
+  trigger?: string;
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  type?: string;
+}
+
+// 单个字段配置
+export interface FieldConfig {
+  key: string;
+  label: string;
+  type?: string;
+  span?: number;
+  pidField?: string;
+  visible?: string;            // 函数体字符串
+  options?: string | Array<{label: string, value: any}>;  // 异步函数字符串 | 静态数组
+  render?: string;             // 自定义 render 函数体字符串
+  rules?: ValidationRule[];
+  props?: Record<string, any>;
+  defaultValue?: any;
+}
+
+// 表单配置 JSON 的顶层结构
+export interface FormConfig {
+  [formKey: string]: {
+    title: string;
+    layout: 'grid' | 'inline' | 'vertical';
+    columns: number;            // 24栅格列数
+    fields: FieldConfig[];
+  }
+}
+
 // 物料元数据接口
 export interface MaterialMeta {
   type: string;           // 组件类型标识

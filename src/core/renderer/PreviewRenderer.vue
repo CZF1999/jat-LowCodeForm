@@ -1,7 +1,10 @@
 <template>
   <div class="preview-container">
-    <div 
-      class="preview-form"
+    <div
+      :class="[
+        'preview-form',
+        `preview-layout-${pageSettings.layout || 'vertical'}`
+      ]"
       :style="{
         backgroundColor: pageSettings.backgroundColor || '#ffffff'
       }"
@@ -15,11 +18,12 @@
       </div>
       
       <!-- 渲染根组件 -->
-      <ComponentRenderer 
-        v-for="component in components" 
+      <ComponentRenderer
+        v-for="component in components"
         :key="component.id"
         :component="component"
         :selected-id="null"
+        :page-settings="pageSettings"
       />
       
       <!-- 提交和取消按钮 -->
@@ -77,6 +81,25 @@ const handleCancel = () => {
   flex-direction: column;
   gap: 10px;
   box-sizing: border-box;
+}
+
+/* 预览栅格布局 */
+.preview-layout-grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* 预览行内布局 */
+.preview-layout-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 预览垂直布局 */
+.preview-layout-vertical {
+  flex-direction: column;
 }
 
 /* 确保预览中的组件没有外边距 */

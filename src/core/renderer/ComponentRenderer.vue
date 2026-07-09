@@ -1,18 +1,26 @@
 <template>
-  <div 
+  <div
     :id="component.id"
     :class="[
-      'lc-component', 
-      `lc-${component.type}`, 
-      { 
+      'lc-component',
+      `lc-${component.type}`,
+      {
         'lc-component-selected': selectedId === component.id,
         'title-left': component.titlePosition === 'left'
       }
     ]"
-    :style="component.styles"
+    :style="[component.styles, componentLayoutStyle]"
     @click="handleClick"
     @mousedown="handleMouseDown"
   >
+    <!-- 拖拽手柄（SortableJS 通过 handle 选项自动接管，无需手动绑定事件） -->
+    <div
+      class="drag-handle"
+      title="拖拽以移动位置"
+    >
+      <el-icon><Rank /></el-icon>
+    </div>
+
     <!-- 可编辑的表单元素标题（subform、static-text和divider除外） -->
             <div v-if="component.type !== 'subform' && component.type !== 'static-text' && component.type !== 'divider'" class="component-title" @click.stop="startEditing">
               <div v-if="!isEditing" class="title-text">
@@ -169,8 +177,28 @@
           </el-button>
         </el-upload>
       </template>
+      <template v-else-if="component.type === 'block'">
+        <BlockRenderer
+          :component="component"
+          :selected-id="selectedId"
+          :page-settings="pageSettings"
+          @select="(id) => emit('select', id)"
+          @delete="(id) => emit('delete', id)"
+          @copy="(comp) => emit('copy', comp)"
+          @update:component="(comp) => emit('update:component', comp)"
+        />
+      </template>
+      <template v-else-if="component.type === 'button'">
+        <el-button
+          v-bind="component.props"
+          v-on="component.events"
+          @click.stop="handleComponentClick"
+        >
+          {{ component.props.label || 'Button' }}
+        </el-button>
+      </template>
       <template v-else>
-        <component 
+        <component
           :is="getComponent(component.type)"
           v-bind="component.props"
           v-on="component.events"
@@ -216,13 +244,41 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
-import { Delete, DocumentCopy, Upload } from '@element-plus/icons-vue'
+import { ref, computed, nextTick } from 'vue'
+import { Delete, DocumentCopy, Upload, Rank } from '@element-plus/icons-vue'
+import BlockRenderer from '../../materials/base/Block/index.vue'
 
 // 组件属性
 const props = defineProps({
   component: Object,
-  selectedId: [String, null]
+  selectedId: [String, null],
+  pageSettings: {
+    type: Object,
+    default: () => ({ layout: 'vertical' })
+  }
+})
+
+// 根据布局模式和 span 计算组件宽度
+const componentLayoutStyle = computed(() => {
+  const layout = props.pageSettings?.layout || 'vertical'
+  if (layout === 'vertical') return {}
+
+  const span = props.component?.props?.span || 24
+  const pct = (span / 24) * 100
+
+  if (layout === 'grid') {
+    return {
+      width: `calc(${pct}% - 8px)`,
+      flexShrink: '0'
+    }
+  }
+  if (layout === 'inline') {
+    return {
+      width: 'auto',
+      flexShrink: '0'
+    }
+  }
+  return {}
 })
 
 // 组件事件
@@ -333,26 +389,6 @@ const handleCopy = () => {
   emit('copy', props.component)
 }
 
-// 处理组件拖拽开始
-const handleComponentDragStart = (event) => {
-  if (!event.dataTransfer) return
-  
-  // 设置拖拽数据
-  const dragData = {
-    type: 'component',
-    component: props.component
-  }
-  event.dataTransfer.setData('application/json', JSON.stringify(dragData))
-  
-  // 设置拖拽效果
-  event.dataTransfer.effectAllowed = 'move'
-}
-
-// 处理拖拽结束
-const handleDragEnd = () => {
-  // 可以在这里添加拖拽结束的逻辑
-}
-
 // 处理鼠标按下事件，拦截表单元素的原生行为
 const handleMouseDown = (event) => {
   // 阻止事件冒泡，确保点击组件时不会触发表单元素的原生行为
@@ -446,6 +482,38 @@ const handleUpdateComponent = (updatedComponent) => {
   align-items: flex-start;
   gap: 12px;
   flex-direction: column;
+}
+
+/* 拖拽手柄 */
+.drag-handle {
+  position: absolute;
+  left: -28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  color: #999;
+  font-size: 16px;
+  z-index: 20;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.lc-component:hover .drag-handle {
+  opacity: 1;
+}
+
+.lc-component-selected .drag-handle {
+  opacity: 1;
+  color: #409EFF;
 }
 
 /* subform组件特殊样式 */

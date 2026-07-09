@@ -1,14 +1,61 @@
 // 物料注册管理
 import Button from './base/Button/index.vue'
 import Input from './base/Input/index.vue'
+import Block from './base/Block/index.vue'
 
 // 物料元数据定义
 const materials = [
   {
+    type: 'block',
+    name: '空白区块',
+    icon: 'Grid',
+    category: 'layout',
+    version: '1.0.0',
+    propsSchema: {
+      title: {
+        type: 'string',
+        default: '区块'
+      },
+      padding: {
+        type: 'string',
+        default: '16px'
+      },
+      backgroundColor: {
+        type: 'string',
+        default: '#ffffff'
+      },
+      border: {
+        type: 'boolean',
+        default: true
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
+      }
+    },
+    defaultProps: {
+      title: '区块',
+      padding: '16px',
+      backgroundColor: '#ffffff',
+      border: true,
+      span: 24,
+      visibleCondition: ''
+    },
+    defaultStyles: {
+      margin: '8px 0'
+    },
+    isContainer: true,
+    childrenTypes: ['button', 'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'date', 'time', 'switch', 'slider', 'rate', 'upload', 'static-text']
+  },
+  {
     type: 'button',
     name: '按钮',
     icon: 'Button',
-    category: 'basic',
+    category: 'layout',
     version: '1.0.0',
     propsSchema: {
       type: {
@@ -47,7 +94,7 @@ const materials = [
       circle: false
     },
     defaultStyles: {
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -55,7 +102,7 @@ const materials = [
     type: 'input',
     name: '输入框',
     icon: 'Edit',
-    category: 'basic',
+    category: 'layout',
     version: '1.0.0',
     propsSchema: {
       placeholder: {
@@ -78,6 +125,18 @@ const materials = [
       showWordLimit: {
         type: 'boolean',
         default: false
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
@@ -85,11 +144,14 @@ const materials = [
       disabled: false,
       size: 'small',
       maxlength: undefined,
-      showWordLimit: false
+      showWordLimit: false,
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -119,6 +181,18 @@ const materials = [
       showWordLimit: {
         type: 'boolean',
         default: false
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
@@ -126,11 +200,14 @@ const materials = [
       disabled: false,
       rows: 3,
       maxlength: undefined,
-      showWordLimit: false
+      showWordLimit: false,
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -165,6 +242,18 @@ const materials = [
       step: {
         type: 'number',
         default: 1
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
@@ -173,11 +262,14 @@ const materials = [
       size: 'small',
       min: undefined,
       max: undefined,
-      step: 1
+      step: 1,
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -204,6 +296,27 @@ const materials = [
         type: 'string',
         enum: ['large', 'medium', 'small'],
         default: 'small'
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
+      },
+      optionsType: {
+        type: 'string',
+        enum: ['static', 'async'],
+        default: 'static'
+      },
+      optionsApi: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
@@ -213,10 +326,15 @@ const materials = [
         { label: 'Option 3', value: '3' }
       ],
       disabled: false,
-      size: 'small'
+      size: 'small',
+      fieldName: '',
+      span: 24,
+      visibleCondition: '',
+      optionsType: 'static',
+      optionsApi: ''
     },
     defaultStyles: {
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -243,6 +361,27 @@ const materials = [
         type: 'string',
         enum: ['large', 'medium', 'small'],
         default: 'small'
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
+      },
+      optionsType: {
+        type: 'string',
+        enum: ['static', 'async'],
+        default: 'static'
+      },
+      optionsApi: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
@@ -252,10 +391,15 @@ const materials = [
         { label: 'Option 3', value: '3' }
       ],
       disabled: false,
-      size: 'small'
+      size: 'small',
+      fieldName: '',
+      span: 24,
+      visibleCondition: '',
+      optionsType: 'static',
+      optionsApi: ''
     },
     defaultStyles: {
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -286,6 +430,31 @@ const materials = [
         type: 'string',
         enum: ['large', 'medium', 'small'],
         default: 'small'
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
+      },
+      pidField: {
+        type: 'string',
+        default: ''
+      },
+      optionsType: {
+        type: 'string',
+        enum: ['static', 'async'],
+        default: 'static'
+      },
+      optionsApi: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
@@ -296,11 +465,17 @@ const materials = [
       ],
       placeholder: 'Please select',
       disabled: false,
-      size: 'small'
+      size: 'small',
+      fieldName: '',
+      span: 24,
+      visibleCondition: '',
+      pidField: '',
+      optionsType: 'static',
+      optionsApi: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -323,16 +498,31 @@ const materials = [
         type: 'string',
         enum: ['large', 'medium', 'small'],
         default: 'small'
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
       placeholder: 'Pick a date',
       disabled: false,
-      size: 'small'
+      size: 'small',
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -355,16 +545,31 @@ const materials = [
         type: 'string',
         enum: ['large', 'medium', 'small'],
         default: 'small'
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
       placeholder: 'Pick a time',
       disabled: false,
-      size: 'small'
+      size: 'small',
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -386,15 +591,30 @@ const materials = [
       inactiveText: {
         type: 'string',
         default: ''
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
       disabled: false,
       activeText: '',
-      inactiveText: ''
+      inactiveText: '',
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -420,17 +640,32 @@ const materials = [
       disabled: {
         type: 'boolean',
         default: false
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
       min: 0,
       max: 100,
       step: 1,
-      disabled: false
+      disabled: false,
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
       width: '100%',
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -448,14 +683,29 @@ const materials = [
       disabled: {
         type: 'boolean',
         default: false
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
       max: 5,
-      disabled: false
+      disabled: false,
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -473,14 +723,29 @@ const materials = [
       disabled: {
         type: 'boolean',
         default: false
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
       }
     },
     defaultProps: {
       placeholder: 'Upload file',
-      disabled: false
+      disabled: false,
+      fieldName: '',
+      span: 24,
+      visibleCondition: ''
     },
     defaultStyles: {
-      margin: '8px'
+      // margin: '8px'
     },
     isContainer: false
   },
@@ -536,7 +801,7 @@ const materials = [
       color: '#333333'
     },
     defaultStyles: {
-      margin: '8px',
+      // margin: '8px',
       padding: '8px'
     },
     isContainer: false
@@ -567,7 +832,7 @@ const materials = [
       color: '#333333'
     },
     defaultStyles: {
-      margin: '8px',
+      // margin: '8px',
       padding: '8px'
     },
     isContainer: false
@@ -598,7 +863,7 @@ const materials = [
       display: 'flex',
       flexDirection: 'row',
       alignItems: 'center',
-      margin: '8px',
+      // // margin: '8px',
       padding: '16px',
       border: '1px solid #e0e0e0',
       borderRadius: '4px'
@@ -635,7 +900,8 @@ const materials = [
 // 物料组件映射
 const materialComponents = {
   button: Button,
-  input: Input
+  input: Input,
+  block: Block
 }
 
 // 获取物料列表

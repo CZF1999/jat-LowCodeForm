@@ -3,7 +3,38 @@
     <h3>属性编辑</h3>
     
     <div v-if="!selectedComponent" class="no-selection">
-      请选择一个组件进行编辑
+      <!-- 表单级配置 -->
+      <div class="property-section">
+        <h4>表单级配置</h4>
+        <el-form :model="pageSettings" size="small">
+          <el-form-item label="表单标题">
+            <el-input
+              v-model="pageSettings.formTitle"
+              @input="updatePageSettings"
+            />
+          </el-form-item>
+          <el-form-item label="布局方式">
+            <el-select
+              v-model="pageSettings.layout"
+              @change="updatePageSettings"
+              style="width: 100%;"
+            >
+              <el-option label="栅格布局 (grid)" value="grid"></el-option>
+              <el-option label="行内布局 (inline)" value="inline"></el-option>
+              <el-option label="垂直布局 (vertical)" value="vertical"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="列数" v-if="pageSettings.layout === 'grid'">
+            <el-input-number
+              v-model="pageSettings.columns"
+              @change="updatePageSettings"
+              :min="1"
+              :max="6"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <p class="no-selection-hint">或选择一个组件进行字段编辑</p>
     </div>
     
     <div v-else class="property-content">
@@ -21,6 +52,7 @@
             <el-input 
               v-model="selectedComponent.label" 
               @input="updateComponent"
+              type="textarea"
             />
           </el-form-item>
           <el-form-item label="标题位置">
@@ -28,6 +60,7 @@
               v-model="selectedComponent.titlePosition" 
               @change="updateComponent"
               style="width: 100%;"
+              
             >
               <el-option label="上方" value="top"></el-option>
               <el-option label="左侧" value="left"></el-option>
@@ -36,11 +69,27 @@
         </el-form>
       </div>
       
+      <!-- 布局配置 -->
+      <div class="property-section" v-if="isFormComponent">
+        <h4>布局配置</h4>
+        <el-form :model="selectedComponent.props" size="small">
+          <el-form-item label="栅格跨度 (span)">
+            <el-input-number
+              v-model="selectedComponent.props.span"
+              @change="updateComponent"
+              :min="1"
+              :max="24"
+              style="width: 100%;"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
       <!-- 属性编辑 -->
       <div class="property-section">
         <h4>属性</h4>
         <el-form :model="selectedComponent.props" size="small">
-          <template v-for="(value, key) in selectedComponent.props" :key="key">
+          <template v-for="(value, key) in visibleProps" :key="key">
             <!-- 字符串类型 -->
             <el-form-item :label="getPropertyLabel(key)" v-if="typeof value === 'string'">
               <el-input 
@@ -124,6 +173,62 @@
         </el-form>
       </div>
 
+      <!-- 高级配置 -->
+      <div class="property-section" v-if="isFormComponent">
+        <h4>高级配置</h4>
+        <el-form :model="selectedComponent.props" size="small">
+          <el-form-item label="字段 Key">
+            <el-input
+              v-model="selectedComponent.props.fieldName"
+              @input="updateComponent"
+              placeholder="留空则自动生成"
+            />
+          </el-form-item>
+          <el-form-item label="依赖字段 (pidField)" v-if="selectedComponent.type === 'select'">
+            <el-select
+              v-model="selectedComponent.props.pidField"
+              @change="updateComponent"
+              style="width: 100%;"
+              clearable
+              placeholder="选择依赖的父级字段"
+            >
+              <el-option
+                v-for="comp in siblingFields"
+                :key="comp.key"
+                :label="comp.label"
+                :value="comp.key"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="可见条件 (visible)">
+            <el-input
+              v-model="selectedComponent.props.visibleCondition"
+              @input="updateComponent"
+              placeholder="如: !!formData.province"
+            />
+          </el-form-item>
+          <el-form-item label="选项来源" v-if="['select','radio','checkbox'].includes(selectedComponent.type)">
+            <el-select
+              v-model="selectedComponent.props.optionsType"
+              @change="updateComponent"
+              style="width: 100%;"
+            >
+              <el-option label="静态选项" value="static"></el-option>
+              <el-option label="异步加载" value="async"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="异步选项函数体" v-if="['select','radio','checkbox'].includes(selectedComponent.type) && selectedComponent.props.optionsType === 'async'">
+            <el-input
+              v-model="selectedComponent.props.optionsApi"
+              @input="updateComponent"
+              type="textarea"
+              :rows="3"
+              placeholder="async (_, formData) => { const res = await fetchData(); return res.data; }"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+
       <!-- 选项编辑 -->
       <div class="property-section" v-if="hasOptions">
         <h4>选项配置</h4>
@@ -193,6 +298,68 @@ const editorStore = useEditorStore()
 // 选中的组件
 const selectedComponent = computed(() => editorStore.selectedComponent)
 
+// 页面设置（用于表单级配置）
+const pageSettings = computed({
+  get: () => editorStore.pageSchema.settings,
+  set: (val) => { /* 通过 updatePageSettings 更新 */ }
+})
+
+// 更新页面设置
+const updatePageSettings = () => {
+  editorStore.pageSchema.settings = { ...editorStore.pageSchema.settings }
+  editorStore.saveHistory()
+}
+
+// 表单组件类型列表（完整版）
+const formComponentTypes = [
+  'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
+  'date', 'time', 'switch', 'slider', 'rate', 'upload'
+]
+
+// 同级表单字段（用于 pidField 下拉选项）
+const siblingFields = computed(() => {
+  const fields = []
+  const collectFields = (components) => {
+    components.forEach(comp => {
+      if (formComponentTypes.includes(comp.type) && comp.id !== editorStore.selectedId) {
+        fields.push({
+          key: comp.props?.fieldName || comp.label || comp.type,
+          label: comp.label || comp.type
+        })
+      }
+      if (comp.children) {
+        collectFields(comp.children)
+      }
+    })
+  }
+  collectFields(editorStore.components)
+  return fields
+})
+
+// 已在专用区域配置的属性，不需要在通用「属性」区重复显示
+const SKIP_PROPS = new Set([
+  'span',             // → 布局配置
+  'fieldName',        // → 高级配置
+  'pidField',         // → 高级配置
+  'visibleCondition', // → 高级配置
+  'optionsType',      // → 高级配置
+  'optionsApi',       // → 高级配置
+  'options'           // → 选项配置
+])
+
+// 过滤掉已有专用 UI 的属性
+const visibleProps = computed(() => {
+  const props = selectedComponent.value?.props
+  if (!props) return {}
+  const filtered = {}
+  for (const [key, value] of Object.entries(props)) {
+    if (!SKIP_PROPS.has(key)) {
+      filtered[key] = value
+    }
+  }
+  return filtered
+})
+
 // 属性标签映射
 const propertyLabels = {
   type: '组件类型',
@@ -251,12 +418,6 @@ const updateComponent = () => {
     })
   }
 }
-
-// 表单组件类型列表
-const formComponentTypes = [
-  'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
-  'date', 'time', 'switch', 'slider', 'rate', 'upload'
-]
 
 // 是否为表单组件
 const isFormComponent = computed(() => {
@@ -367,7 +528,13 @@ const updateOptions = () => {
 .no-selection {
   text-align: center;
   color: #999;
-  padding: 40px 0;
+  padding: 20px 0;
+}
+
+.no-selection-hint {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #bbb;
 }
 
 .property-section {
