@@ -34,14 +34,6 @@ export const useEditorStore = defineStore('editor', {
     },
     // 选中的组件ID
     selectedId: null,
-    // 拖拽状态
-    isDragging: false,
-    // 拖拽占位符样式
-    dragPlaceholderStyle: {},
-    // 当前拖拽类型：'material' | 'component'
-    dragType: null,
-    // 排序插入位置索引
-    insertionIndex: -1,
     // 剪贴板
     clipboard: [],
     // 历史记录
@@ -215,26 +207,6 @@ export const useEditorStore = defineStore('editor', {
     // 选择组件
     selectComponent(id) {
       this.selectedId = id
-    },
-
-    // 设置拖拽状态
-    setDragging(isDragging) {
-      this.isDragging = isDragging
-    },
-
-    // 设置拖拽占位符样式
-    setDragPlaceholderStyle(style) {
-      this.dragPlaceholderStyle = style
-    },
-
-    // 设置拖拽类型
-    setDragType(type) {
-      this.dragType = type
-    },
-
-    // 设置插入位置索引
-    setInsertionIndex(index) {
-      this.insertionIndex = index
     },
 
     // 保存历史记录

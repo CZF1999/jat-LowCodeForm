@@ -53,8 +53,6 @@
           @select="editorStore.selectComponent"
           @delete="editorStore.deleteComponent"
           @copy="editorStore.copyComponent"
-          @dragover="handleDragOver"
-          @drop="handleDrop"
           @update:component="handleUpdateComponent"
         />
         </div>
@@ -88,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Download, Upload, ArrowLeft, ArrowRight, View, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MaterialPanel from './components/MaterialPanel.vue'
@@ -98,12 +96,54 @@ import PropertyPanel from './components/PropertyPanel.vue'
 import CodeGenerator from './components/CodeGenerator.vue'
 import { generateFormConfigJS } from './core/generator/FormConfigGenerator'
 import { useEditorStore } from './stores/editorStore'
-import { useDraggable } from './composables/useDraggable'
 
 const editorStore = useEditorStore()
 // 初始化编辑器状态，保存初始状态到历史记录
 editorStore.initializeStore()
-const { handleDragOver, handleDrop } = useDraggable()
+
+// 键盘快捷键处理
+const isInputFocused = () => {
+  const tag = document.activeElement?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  return document.activeElement?.isContentEditable || false
+}
+
+const handleKeyDown = (event) => {
+  if (isInputFocused()) return
+
+  if (event.ctrlKey && event.key === 'z') {
+    event.preventDefault()
+    editorStore.undo()
+  }
+  if (event.ctrlKey && event.key === 'y') {
+    event.preventDefault()
+    editorStore.redo()
+  }
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (editorStore.selectedId) {
+      event.preventDefault()
+      editorStore.deleteComponent(editorStore.selectedId)
+    }
+  }
+  if (event.ctrlKey && event.key === 'c') {
+    if (editorStore.selectedComponent) {
+      event.preventDefault()
+      editorStore.copyComponent(editorStore.selectedComponent)
+    }
+  }
+  if (event.ctrlKey && event.key === 'v') {
+    event.preventDefault()
+    editorStore.pasteComponent()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
+})
 
 // 预览状态
 const showPreview = ref(false)

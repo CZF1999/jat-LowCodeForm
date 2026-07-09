@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx vite *)",
+      "Bash(node -e \"const icons = require\\('@element-plus/icons-vue'\\); console.log\\('Tickets' in icons ? 'Tickets exists' : 'Tickets MISSING'\\); console.log\\('CircleCheck' in icons ? 'CircleCheck exists' : 'CircleCheck MISSING'\\); console.log\\('ArrowDown' in icons ? 'ArrowDown exists' : 'ArrowDown MISSING'\\); console.log\\('Minus' in icons ? 'Minus exists' : 'Minus MISSING'\\); console.log\\('Calendar' in icons ? 'Calendar exists' : 'Calendar MISSING'\\); console.log\\('Clock' in icons ? 'Clock exists' : 'Clock MISSING'\\); console.log\\('Star' in icons ? 'Star exists' : 'Star MISSING'\\);\")",
+      "Bash(node -e \"const pkg = require\\('vuedraggable/package.json'\\); console.log\\('vuedraggable version:', pkg.version\\);\")"
+    ]
+  }
+}
