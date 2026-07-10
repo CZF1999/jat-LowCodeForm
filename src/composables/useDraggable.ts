@@ -2,16 +2,16 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 
-export function useKeyboard() {
+export function useKeyboard(): void {
   const editorStore = useEditorStore()
 
-  const isInputFocused = () => {
-    const tag = document.activeElement?.tagName
+  const isInputFocused = (): boolean => {
+    const tag = (document.activeElement as HTMLElement)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-    return document.activeElement?.isContentEditable || false
+    return (document.activeElement as HTMLElement)?.isContentEditable || false
   }
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = (event: KeyboardEvent): void => {
     if (isInputFocused()) return
 
     if (event.ctrlKey && event.key === 'z') {

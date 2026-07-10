@@ -24,7 +24,11 @@
         </el-button>
         <el-button type="success" @click="handleExportFormConfig">
           <el-icon><Document /></el-icon>
-          导出表单配置
+          导出 JS 配置
+        </el-button>
+        <el-button type="success" @click="handleExportFormConfigTS">
+          <el-icon><Document /></el-icon>
+          导出 TS 配置
         </el-button>
         <el-button type="primary" @click="showCodeDialog = true">
           <el-icon><Document /></el-icon>
@@ -85,7 +89,7 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Download, Upload, ArrowLeft, ArrowRight, View, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -94,21 +98,22 @@ import CanvasRenderer from './core/renderer/CanvasRenderer.vue'
 import PreviewRenderer from './core/renderer/PreviewRenderer.vue'
 import PropertyPanel from './components/PropertyPanel.vue'
 import CodeGenerator from './components/CodeGenerator.vue'
-import { generateFormConfigJS } from './core/generator/FormConfigGenerator'
+import { generateFormConfigJS, generateFormConfigTS } from './core/generator/FormConfigGenerator'
 import { useEditorStore } from './stores/editorStore'
+import type { ComponentSchema } from './core/schema/types'
 
 const editorStore = useEditorStore()
 // 初始化编辑器状态，保存初始状态到历史记录
 editorStore.initializeStore()
 
 // 键盘快捷键处理
-const isInputFocused = () => {
-  const tag = document.activeElement?.tagName
+const isInputFocused = (): boolean => {
+  const tag = (document.activeElement as HTMLElement)?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  return document.activeElement?.isContentEditable || false
+  return (document.activeElement as HTMLElement)?.isContentEditable || false
 }
 
-const handleKeyDown = (event) => {
+const handleKeyDown = (event: KeyboardEvent): void => {
   if (isInputFocused()) return
 
   if (event.ctrlKey && event.key === 'z') {
@@ -151,7 +156,7 @@ const showPreview = ref(false)
 const showCodeDialog = ref(false)
 
 // 导出Schema
-const handleExport = () => {
+const handleExport = (): void => {
   const schema = editorStore.exportSchema()
   const dataStr = JSON.stringify(schema, null, 2)
   const dataBlob = new Blob([dataStr], { type: 'application/json' })
@@ -164,17 +169,18 @@ const handleExport = () => {
 }
 
 // 导入Schema
-const handleImport = () => {
+const handleImport = (): void => {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.json'
-  input.onchange = (e) => {
-    const file = e.target.files?.[0]
+  input.onchange = (e: Event) => {
+    const target = e.target as HTMLInputElement
+    const file = target.files?.[0]
     if (file) {
       const reader = new FileReader()
-      reader.onload = (event) => {
+      reader.onload = (event: ProgressEvent<FileReader>) => {
         try {
-          const schema = JSON.parse(event.target?.result)
+          const schema = JSON.parse(event.target?.result as string)
           editorStore.importSchema(schema)
         } catch (error) {
           console.error('Failed to parse schema:', error)
@@ -187,20 +193,20 @@ const handleImport = () => {
 }
 
 // 处理组件更新
-const handleUpdateComponent = (updatedComponent) => {
+const handleUpdateComponent = (updatedComponent: ComponentSchema): void => {
   const { id, ...updates } = updatedComponent
   editorStore.updateComponent(id, updates)
 }
 
 // 表单组件类型列表
-const formComponentTypes = [
+const formComponentTypes: string[] = [
   'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
   'date', 'time', 'switch', 'slider', 'rate', 'upload'
 ]
 
 // 获取数据类型
-const getDataType = (componentType) => {
-  const typeMap = {
+const getDataType = (componentType: string): string => {
+  const typeMap: Record<string, string> = {
     'input': 'string',
     'textarea': 'string',
     'number': 'number',
@@ -218,7 +224,7 @@ const getDataType = (componentType) => {
 }
 
 // 导出表单配置 JS
-const handleExportFormConfig = () => {
+const handleExportFormConfig = (): void => {
   const components = editorStore.components
   if (components.length === 0) {
     ElMessage.warning('请先添加表单组件')
@@ -232,16 +238,34 @@ const handleExportFormConfig = () => {
   link.download = 'form-config.js'
   link.click()
   URL.revokeObjectURL(url)
-  ElMessage.success('表单配置已导出')
+  ElMessage.success('JS 配置已导出')
+}
+
+// 导出表单配置 TS
+const handleExportFormConfigTS = (): void => {
+  const components = editorStore.components
+  if (components.length === 0) {
+    ElMessage.warning('请先添加表单组件')
+    return
+  }
+  const tsCode = generateFormConfigTS(components, editorStore.pageSchema.settings)
+  const dataBlob = new Blob([tsCode], { type: 'application/typescript' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'form-config.ts'
+  link.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('TS 配置已导出')
 }
 
 // 导出数据结构
-const handleExportDataStructure = () => {
+const handleExportDataStructure = (): void => {
   const components = editorStore.components
-  const dataStructure = {}
-  
+  const dataStructure: Record<string, any> = {}
+
   // 遍历组件，生成数据结构
-  components.forEach(component => {
+  components.forEach((component: ComponentSchema) => {
     if (formComponentTypes.includes(component.type)) {
       const fieldName = component.props.fieldName || component.label || component.type
       dataStructure[fieldName] = {
@@ -252,7 +276,7 @@ const handleExportDataStructure = () => {
       }
     }
   })
-  
+
   const dataStr = JSON.stringify(dataStructure, null, 2)
   const dataBlob = new Blob([dataStr], { type: 'application/json' })
   const url = URL.createObjectURL(dataBlob)

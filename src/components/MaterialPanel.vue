@@ -30,7 +30,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import draggable from 'vuedraggable'
 import {
@@ -38,6 +38,8 @@ import {
   Star, CircleCheck, ArrowDown, Minus, Upload, Tickets
 } from '@element-plus/icons-vue'
 import { getMaterials } from '../materials'
+import type { ComponentSchema } from '../core/schema/types'
+import type { MaterialMeta } from '../core/schema/types'
 
 const materials = getMaterials()
 
@@ -47,16 +49,16 @@ const formMaterials = computed(() => {
 
 const activeCategory = computed(() => 'form')
 
-function generateId() {
+function generateId(): string {
   return 'component_' + Date.now() + '_' + Math.floor(Math.random() * 10000)
 }
 
-const cloneMaterial = (material) => {
+const cloneMaterial = (material: MaterialMeta): Partial<ComponentSchema> => {
   return {
     type: material.type,
     label: material.name,
-    props: { ...material.defaultProps },
-    styles: { ...material.defaultStyles },
+    props: { ...(material.defaultProps as Record<string, any>) },
+    styles: { ...(material.defaultStyles as Record<string, string>) },
     events: {},
     children: material.isContainer ? [] : undefined,
     id: generateId(),
@@ -64,7 +66,7 @@ const cloneMaterial = (material) => {
   }
 }
 
-const iconMap = {
+const iconMap: Record<string, any> = {
   input: Edit,
   textarea: Document,
   number: Tickets,
@@ -82,7 +84,7 @@ const iconMap = {
   subform: Grid
 }
 
-const getIcon = (type) => {
+const getIcon = (type: string) => {
   return iconMap[type] || Document
 }
 </script>

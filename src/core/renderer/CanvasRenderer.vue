@@ -41,23 +41,30 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Plus } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import ComponentRenderer from './ComponentRenderer.vue'
 import { useEditorStore } from '../../stores/editorStore'
+import type { ComponentSchema, PageSettings } from '../../core/schema/types'
 
 const editorStore = useEditorStore()
 
 const props = defineProps({
-  components: Array,
-  pageSettings: Object,
-  selectedId: [String, null]
+  components: Array as () => ComponentSchema[],
+  pageSettings: Object as () => PageSettings,
+  selectedId: [String, null] as unknown as () => string | null
 })
 
 const emit = defineEmits(['select', 'delete', 'copy', 'update:component'])
 
-const handleChange = (evt) => {
+interface DraggableChangeEvent {
+  added?: { element: ComponentSchema }
+  moved?: { element: ComponentSchema }
+  removed?: { element: ComponentSchema }
+}
+
+const handleChange = (evt: DraggableChangeEvent): void => {
   console.log('handleChange', evt)
   if (evt.added) {
     editorStore.selectedId = evt.added.element.id // 拖入新组件后自动选中
@@ -65,23 +72,23 @@ const handleChange = (evt) => {
   editorStore.saveHistory() // 任何排序/增删都记录到撤销栈
 }
 
-const handleSelect = (id) => {
+const handleSelect = (id: string): void => {
   emit('select', id)
 }
 
-const handleDelete = (id) => {
+const handleDelete = (id: string): void => {
   emit('delete', id)
 }
 
-const handleCopy = (component) => {
+const handleCopy = (component: ComponentSchema): void => {
   emit('copy', component)
 }
 
-const handleUpdateComponent = (updatedComponent) => {
+const handleUpdateComponent = (updatedComponent: ComponentSchema): void => {
   emit('update:component', updatedComponent)
 }
 
-const handleCanvasClick = (event) => {
+const handleCanvasClick = (event: MouseEvent): void => {
   if (event.target === event.currentTarget) {
     emit('select', null)
   }

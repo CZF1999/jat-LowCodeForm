@@ -11,6 +11,19 @@ export interface ComponentSchema {
   events: Record<string, Function>; // 事件绑定
   conditions?: Condition[];       // 条件渲染
   loops?: LoopConfig;             // 循环渲染
+  titlePosition?: string;         // 标题位置：'top' | 'left'
+  validation?: ValidationConfig;  // 验证配置
+}
+
+// 校验配置
+export interface ValidationConfig {
+  required?: boolean;
+  type?: 'string' | 'number' | 'email' | 'phone';
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  pattern?: string;
 }
 
 // 条件渲染配置
@@ -35,6 +48,9 @@ export interface PageSettings {
   width: string;
   height: string;
   meta: Record<string, string>;
+  formTitle?: string;
+  layout?: 'grid' | 'inline' | 'vertical';
+  columns?: number;
 }
 
 // 页面Schema接口

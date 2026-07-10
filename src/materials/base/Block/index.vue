@@ -29,17 +29,15 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import ComponentRenderer from '../../../core/renderer/ComponentRenderer.vue'
-import { useEditorStore } from '../../../stores/editorStore'
-
-const editorStore = useEditorStore()
+import type { ComponentSchema, PageSettings } from '../../../core/schema/types'
 
 const props = defineProps({
-  component: Object,
-  selectedId: [String, null],
-  pageSettings: Object
+  component: Object as () => ComponentSchema,
+  selectedId: [String, null] as unknown as () => string | null,
+  pageSettings: Object as () => PageSettings
 })
 
 const emit = defineEmits(['select', 'delete', 'copy', 'update:component'])
@@ -52,18 +50,20 @@ const blockStyle = computed(() => ({
   borderRadius: '4px'
 }))
 
-const handleDragOver = (event) => {
+const handleDragOver = (event: DragEvent): void => {
   event.preventDefault()
   event.stopPropagation()
-  event.dataTransfer.dropEffect = 'copy'
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
 }
 
-const handleDrop = (event) => {
+const handleDrop = (event: DragEvent): void => {
   event.preventDefault()
   event.stopPropagation()
 
   try {
-    const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
+    const dragData = JSON.parse(event.dataTransfer?.getData('application/json') || '{}')
     if (dragData.type === 'material' && dragData.material) {
       const newChild = {
         type: dragData.material.type,

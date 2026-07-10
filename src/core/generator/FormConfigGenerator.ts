@@ -1,20 +1,22 @@
 // 表单配置 JSON 生成器
 // 将内部组件树 (ComponentSchema[]) 转换为声明式表单配置 JSON
 
+import type { ComponentSchema, FieldConfig, FormConfig, ValidationRule } from '../schema/types'
+
 // 表单组件类型（生成 field 的类型）
-const FORM_COMPONENT_TYPES = [
+const FORM_COMPONENT_TYPES: string[] = [
   'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
   'date', 'time', 'switch', 'slider', 'rate', 'upload'
 ]
 
 // 内部元数据属性（不应输出到 props 中）
-const META_PROPS = [
+const META_PROPS: string[] = [
   'fieldName', 'span', 'pidField', 'visibleCondition',
   'optionsType', 'optionsApi', 'options', 'defaultValue'
 ]
 
 // 获取数据类型默认值
-const getDefaultValue = (type) => {
+const getDefaultValue = (type: string): string | number | boolean | string[] => {
   switch (type) {
     case 'input':
     case 'textarea':
@@ -37,14 +39,14 @@ const getDefaultValue = (type) => {
 }
 
 // 获取字段的 key（优先使用 fieldName，其次 label，最后 type）
-const getFieldKey = (component) => {
+const getFieldKey = (component: ComponentSchema): string => {
   return component.props?.fieldName || component.label || component.type
 }
 
 // 过滤出需要输出的 Element Plus 属性
-const filterOutputProps = (props) => {
+const filterOutputProps = (props: Record<string, any> | undefined): Record<string, any> | undefined => {
   if (!props) return undefined
-  const output = {}
+  const output: Record<string, any> = {}
   for (const [key, value] of Object.entries(props)) {
     if (!META_PROPS.includes(key) && value !== undefined && value !== '') {
       output[key] = value
@@ -54,7 +56,7 @@ const filterOutputProps = (props) => {
 }
 
 // 生成 options 字段
-const generateOptions = (component) => {
+const generateOptions = (component: ComponentSchema): string | Array<{label: string, value: any}> | undefined => {
   const props = component.props || {}
   if (props.optionsType === 'async' && props.optionsApi) {
     // 异步选项：返回函数体字符串
@@ -68,11 +70,11 @@ const generateOptions = (component) => {
 }
 
 // 转换验证规则
-const generateRules = (component) => {
+const generateRules = (component: ComponentSchema): ValidationRule[] | undefined => {
   const validation = component.validation
   if (!validation) return undefined
 
-  const rules = []
+  const rules: ValidationRule[] = []
 
   if (validation.required) {
     rules.push({
@@ -127,7 +129,7 @@ const generateRules = (component) => {
     })
   } else if (validation.type === 'phone') {
     rules.push({
-      pattern: /^1[3-9]\d{9}$/,
+      pattern: '^1[3-9]\\d{9}$',
       message: '请输入正确的手机号码',
       trigger: 'blur'
     })
@@ -137,8 +139,8 @@ const generateRules = (component) => {
 }
 
 // 生成单个字段配置
-const generateField = (component) => {
-  const field = {
+const generateField = (component: ComponentSchema): FieldConfig => {
+  const field: FieldConfig = {
     key: getFieldKey(component),
     label: component.label || component.type
   }
@@ -192,11 +194,11 @@ const generateField = (component) => {
 }
 
 // 容器类型（需要递归展开子组件）
-const CONTAINER_TYPES = ['subform', 'block']
+const CONTAINER_TYPES: string[] = ['subform', 'block']
 
 // 递归收集所有表单字段（展平容器的 children）
-const collectFields = (components) => {
-  const fields = []
+const collectFields = (components: ComponentSchema[]): FieldConfig[] => {
+  const fields: FieldConfig[] = []
 
   components.forEach(component => {
     if (CONTAINER_TYPES.includes(component.type) && component.children) {
@@ -214,12 +216,12 @@ const collectFields = (components) => {
 /**
  * 生成表单配置数据对象
  */
-export function generateFormConfig(components, pageSettings = {}) {
-  const formTitle = pageSettings.formTitle || 'form'
-  const formKey = formTitle
-    .replace(/[\s_-]+(.)/g, (_, c) => c.toUpperCase())
+export function generateFormConfig(components: ComponentSchema[], pageSettings: Record<string, any> = {}): FormConfig {
+  const formTitle: string = pageSettings.formTitle || 'form'
+  const formKey: string = formTitle
+    .replace(/[\s_-]+(.)/g, (_, c: string) => c.toUpperCase())
     .replace(/[\s_-]+/g, '')
-    .replace(/^./, (c) => c.toLowerCase())
+    .replace(/^./, (c: string) => c.toLowerCase())
 
   const fields = collectFields(components)
 
@@ -236,17 +238,17 @@ export function generateFormConfig(components, pageSettings = {}) {
 // ========== JS 代码生成器 ==========
 
 // 判断是否是合法 JS 标识符（不需要引号）
-const isValidIdentifier = (key) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)
+const isValidIdentifier = (key: string): boolean => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)
 
 // 判断字符串是否应该作为代码输出（函数体）
-const isCodeExpression = (value) => {
+const isCodeExpression = (value: unknown): boolean => {
   if (typeof value !== 'string') return false
   const trimmed = value.trim()
   return trimmed.startsWith('(') || trimmed.startsWith('async') || trimmed.startsWith('function')
 }
 
 // 将任意 JS 值转为源码字符串
-const toJS = (value, indent = 0) => {
+const toJS = (value: unknown, indent = 0): string => {
   const pad = '  '.repeat(indent)
   const childPad = '  '.repeat(indent + 1)
 
@@ -255,7 +257,7 @@ const toJS = (value, indent = 0) => {
   if (typeof value === 'number') return String(value)
 
   // 函数体字符串 → 直接输出代码
-  if (isCodeExpression(value)) return value
+  if (isCodeExpression(value)) return value as string
 
   if (typeof value === 'string') {
     // 优先用单引号，如果内容包含单引号则用双引号
@@ -268,21 +270,21 @@ const toJS = (value, indent = 0) => {
   if (Array.isArray(value)) {
     if (value.length === 0) return '[]'
     // 简单值（数字、布尔、短字符串）放一行
-    const allSimple = value.every(v =>
+    const allSimple = value.every((v: unknown) =>
       typeof v === 'number' || typeof v === 'boolean' || v === null ||
       (typeof v === 'string' && v.length < 30 && !v.includes('\n'))
     )
     if (allSimple) {
-      const items = value.map(v => toJS(v, 0)).join(', ')
+      const items = value.map((v: unknown) => toJS(v, 0)).join(', ')
       const line = `[${items}]`
       if (line.length < 80) return line
     }
-    const items = value.map(v => `${childPad}${toJS(v, indent + 1)}`).join(',\n')
+    const items = value.map((v: unknown) => `${childPad}${toJS(v, indent + 1)}`).join(',\n')
     return `[\n${items}\n${pad}]`
   }
 
   if (typeof value === 'object') {
-    const entries = Object.entries(value).filter(([, v]) => v !== undefined)
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined)
     if (entries.length === 0) return '{}'
     const lines = entries.map(([k, v]) => {
       const key = isValidIdentifier(k) ? k : `'${k}'`
@@ -296,20 +298,69 @@ const toJS = (value, indent = 0) => {
 
 /**
  * 生成 JS 格式的表单配置代码
- * @param {Array} components
- * @param {Object} pageSettings
- * @returns {string} JS 代码字符串
  */
-export function generateFormConfigJS(components, pageSettings = {}) {
+export function generateFormConfigJS(components: ComponentSchema[], pageSettings: Record<string, any> = {}): string {
   const config = generateFormConfig(components, pageSettings)
   const body = toJS(config, 1)
   return `const formConfig = ${body}\n\nexport default formConfig\n`
 }
 
 /**
+ * 生成 TS 格式的表单配置代码（自包含，含内联类型定义）
+ */
+export function generateFormConfigTS(components: ComponentSchema[], pageSettings: Record<string, any> = {}): string {
+  const config = generateFormConfig(components, pageSettings)
+  const body = toJS(config, 1)
+
+  // 内联类型定义（自包含，无需外部依赖即可直接使用）
+  const typeDefs = `/** 校验规则 */
+interface ValidationRule {
+  required?: boolean
+  message?: string
+  trigger?: string
+  min?: number
+  max?: number
+  minLength?: number
+  maxLength?: number
+  pattern?: string
+  type?: string
+}
+
+/** 单个字段配置 */
+interface FieldConfig {
+  key: string
+  label: string
+  type?: string
+  span?: number
+  pidField?: string
+  visible?: string
+  options?: string | Array<{ label: string, value: any }>
+  rules?: ValidationRule[]
+  props?: Record<string, any>
+  defaultValue?: any
+}
+
+/** 表单配置 */
+interface FormConfig {
+  [formKey: string]: {
+    title: string
+    layout: 'grid' | 'inline' | 'vertical'
+    columns: number
+    fields: FieldConfig[]
+  }
+}
+`
+  return `${typeDefs}
+const formConfig: FormConfig = ${body}
+
+export default formConfig
+`
+}
+
+/**
  * 生成格式化的 JSON 字符串（保留兼容）
  */
-export function generateFormConfigJSON(components, pageSettings = {}) {
+export function generateFormConfigJSON(components: ComponentSchema[], pageSettings: Record<string, any> = {}): string {
   const config = generateFormConfig(components, pageSettings)
   return JSON.stringify(config, null, 2)
 }

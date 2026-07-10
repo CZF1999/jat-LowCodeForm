@@ -289,9 +289,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
+import type { ComponentSchema } from '../core/schema/types'
 
 const editorStore = useEditorStore()
 
@@ -301,25 +302,25 @@ const selectedComponent = computed(() => editorStore.selectedComponent)
 // 页面设置（用于表单级配置）
 const pageSettings = computed({
   get: () => editorStore.pageSchema.settings,
-  set: (val) => { /* 通过 updatePageSettings 更新 */ }
+  set: (_val: any) => { /* 通过 updatePageSettings 更新 */ }
 })
 
 // 更新页面设置
-const updatePageSettings = () => {
+const updatePageSettings = (): void => {
   editorStore.pageSchema.settings = { ...editorStore.pageSchema.settings }
   editorStore.saveHistory()
 }
 
 // 表单组件类型列表（完整版）
-const formComponentTypes = [
+const formComponentTypes: string[] = [
   'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
   'date', 'time', 'switch', 'slider', 'rate', 'upload'
 ]
 
 // 同级表单字段（用于 pidField 下拉选项）
 const siblingFields = computed(() => {
-  const fields = []
-  const collectFields = (components) => {
+  const fields: Array<{ key: string, label: string }> = []
+  const collectFields = (components: ComponentSchema[]): void => {
     components.forEach(comp => {
       if (formComponentTypes.includes(comp.type) && comp.id !== editorStore.selectedId) {
         fields.push({
@@ -337,7 +338,7 @@ const siblingFields = computed(() => {
 })
 
 // 已在专用区域配置的属性，不需要在通用「属性」区重复显示
-const SKIP_PROPS = new Set([
+const SKIP_PROPS: Set<string> = new Set([
   'span',             // → 布局配置
   'fieldName',        // → 高级配置
   'pidField',         // → 高级配置
@@ -351,7 +352,7 @@ const SKIP_PROPS = new Set([
 const visibleProps = computed(() => {
   const props = selectedComponent.value?.props
   if (!props) return {}
-  const filtered = {}
+  const filtered: Record<string, any> = {}
   for (const [key, value] of Object.entries(props)) {
     if (!SKIP_PROPS.has(key)) {
       filtered[key] = value
@@ -361,7 +362,7 @@ const visibleProps = computed(() => {
 })
 
 // 属性标签映射
-const propertyLabels = {
+const propertyLabels: Record<string, string> = {
   type: '组件类型',
   label: '显示名称',
   placeholder: '占位符',
@@ -379,7 +380,7 @@ const propertyLabels = {
 }
 
 // 样式标签映射
-const styleLabels = {
+const styleLabels: Record<string, string> = {
   width: '宽度',
   height: '高度',
   margin: '外边距',
@@ -401,17 +402,17 @@ const styleLabels = {
 }
 
 // 获取属性标签
-const getPropertyLabel = (key) => {
+const getPropertyLabel = (key: string): string => {
   return propertyLabels[key] || key
 }
 
 // 获取样式标签
-const getStyleLabel = (key) => {
+const getStyleLabel = (key: string): string => {
   return styleLabels[key] || key
 }
 
 // 更新组件
-const updateComponent = () => {
+const updateComponent = (): void => {
   if (selectedComponent.value) {
     editorStore.updateComponent(selectedComponent.value.id, {
       ...selectedComponent.value
@@ -426,9 +427,9 @@ const isFormComponent = computed(() => {
 
 // 验证规则
 const validationRules = computed({
-  get: () => {
+  get: (): Record<string, any> => {
     if (!selectedComponent.value) return {}
-    return selectedComponent.value.validation || {
+    return (selectedComponent.value as any).validation || {
       required: false,
       type: 'string',
       minLength: undefined,
@@ -438,46 +439,46 @@ const validationRules = computed({
       pattern: undefined
     }
   },
-  set: (value) => {
+  set: (value: Record<string, any>) => {
     if (selectedComponent.value) {
       editorStore.updateComponent(selectedComponent.value.id, {
         ...selectedComponent.value,
         validation: value
-      })
+      } as ComponentSchema)
     }
   }
 })
 
 // 更新验证规则
-const updateValidationRules = () => {
+const updateValidationRules = (): void => {
   if (selectedComponent.value) {
     editorStore.updateComponent(selectedComponent.value.id, {
       ...selectedComponent.value,
       validation: { ...validationRules.value }
-    })
+    } as ComponentSchema)
   }
 }
 
 // 监听选中组件变化
-watch(selectedComponent, (newVal) => {
+watch(selectedComponent, (_newVal) => {
   // 可以在这里添加额外的逻辑
 }, { deep: true })
 
 // 是否有选项属性
 const hasOptions = computed(() => {
-  return selectedComponent.value && 
+  return selectedComponent.value &&
     ['select', 'radio', 'checkbox'].includes(selectedComponent.value.type) &&
-    selectedComponent.value.props && 
+    selectedComponent.value.props &&
     Array.isArray(selectedComponent.value.props.options)
 })
 
 // 选项数据
 const options = computed({
-  get: () => {
+  get: (): Array<{ label: string, value: any }> => {
     if (!hasOptions.value) return []
-    return selectedComponent.value.props.options
+    return selectedComponent.value!.props.options
   },
-  set: (value) => {
+  set: (value: Array<{ label: string, value: any }>) => {
     if (selectedComponent.value && selectedComponent.value.props) {
       selectedComponent.value.props.options = value
       updateComponent()
@@ -486,21 +487,21 @@ const options = computed({
 })
 
 // 添加选项
-const addOption = () => {
+const addOption = (): void => {
   if (!hasOptions.value) return
   const newOptions = [...options.value, { label: '新选项', value: `option_${Date.now()}` }]
   options.value = newOptions
 }
 
 // 删除选项
-const removeOption = (index) => {
+const removeOption = (index: number): void => {
   if (!hasOptions.value) return
   const newOptions = options.value.filter((_, i) => i !== index)
   options.value = newOptions
 }
 
 // 更新选项
-const updateOptions = () => {
+const updateOptions = (): void => {
   if (selectedComponent.value) {
     updateComponent()
   }

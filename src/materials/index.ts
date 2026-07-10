@@ -1,10 +1,26 @@
 // 物料注册管理
+import type { Component } from 'vue'
+import type { MaterialMeta } from '../core/schema/types'
 import Button from './base/Button/index.vue'
 import Input from './base/Input/index.vue'
 import Block from './base/Block/index.vue'
 
+// PropSchema 中每个属性的定义
+interface PropSchemaItem {
+  type: string
+  default?: any
+  enum?: string[]
+}
+
+// 扩展的物料定义（包含 propsSchema 详情）
+interface MaterialDef extends MaterialMeta {
+  propsSchema: Record<string, PropSchemaItem>
+  defaultProps: Record<string, any>
+  defaultStyles: Record<string, string>
+}
+
 // 物料元数据定义
-const materials = [
+const materials: MaterialDef[] = [
   {
     type: 'block',
     name: '空白区块',
@@ -898,35 +914,35 @@ const materials = [
 ]
 
 // 物料组件映射
-const materialComponents = {
+const materialComponents: Record<string, Component> = {
   button: Button,
   input: Input,
   block: Block
 }
 
 // 获取物料列表
-export function getMaterials() {
+export function getMaterials(): MaterialDef[] {
   return materials
 }
 
 // 根据类型获取物料
-export function getMaterialByType(type) {
+export function getMaterialByType(type: string): MaterialDef | undefined {
   return materials.find(material => material.type === type)
 }
 
 // 根据类型获取组件
-export function getComponentByType(type) {
+export function getComponentByType(type: string): Component | undefined {
   return materialComponents[type]
 }
 
 // 注册新物料
-export function registerMaterial(material, component) {
+export function registerMaterial(material: MaterialDef, component: Component): void {
   materials.push(material)
   materialComponents[material.type] = component
 }
 
 // 注销物料
-export function unregisterMaterial(type) {
+export function unregisterMaterial(type: string): void {
   const index = materials.findIndex(material => material.type === type)
   if (index > -1) {
     materials.splice(index, 1)

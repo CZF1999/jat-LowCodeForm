@@ -35,14 +35,15 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Plus } from '@element-plus/icons-vue'
 import ComponentRenderer from './ComponentRenderer.vue'
+import type { ComponentSchema, PageSettings } from '../../core/schema/types'
 
 // 组件属性
 const props = defineProps({
-  components: Array,
-  pageSettings: Object
+  components: Array as () => ComponentSchema[],
+  pageSettings: Object as () => PageSettings
 })
 
 // 事件定义

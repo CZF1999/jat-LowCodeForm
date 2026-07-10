@@ -243,18 +243,19 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import { Delete, DocumentCopy, Upload, Rank } from '@element-plus/icons-vue'
 import BlockRenderer from '../../materials/base/Block/index.vue'
+import type { ComponentSchema, PageSettings } from '../../core/schema/types'
 
 // 组件属性
 const props = defineProps({
-  component: Object,
-  selectedId: [String, null],
+  component: Object as () => ComponentSchema,
+  selectedId: [String, null] as unknown as () => string | null,
   pageSettings: {
-    type: Object,
-    default: () => ({ layout: 'vertical' })
+    type: Object as () => PageSettings,
+    default: () => ({ layout: 'vertical' } as PageSettings)
   }
 })
 
@@ -287,10 +288,10 @@ const emit = defineEmits(['select', 'delete', 'copy', 'update:component'])
 // 编辑状态
 const isEditing = ref(false)
 const editTitle = ref('')
-const titleInputRef = ref(null)
+const titleInputRef = ref<any>(null)
 
 // 物料组件映射
-const materialComponents = {
+const materialComponents: Record<string, string> = {
   button: 'el-button',
   input: 'el-input',
   text: 'div',
@@ -309,17 +310,16 @@ const materialComponents = {
   divider: 'el-divider',
   'static-text': 'div',
   subform: 'div'
-  // 可以扩展更多组件
 }
 
 // 获取组件
-const getComponent = (type) => {
+const getComponent = (type: string): string => {
   return materialComponents[type] || 'div'
 }
 
 // 获取默认标签
-const getDefaultLabel = (type) => {
-  const labelMap = {
+const getDefaultLabel = (type: string): string => {
+  const labelMap: Record<string, string> = {
     button: 'Button',
     input: 'Input',
     text: 'Text',
@@ -343,10 +343,10 @@ const getDefaultLabel = (type) => {
 }
 
 // 开始编辑
-const startEditing = () => {
+const startEditing = (): void => {
   isEditing.value = true
   editTitle.value = props.component.label || getDefaultLabel(props.component.type)
-  
+
   // 等待DOM更新后聚焦输入框
   nextTick(() => {
     if (titleInputRef.value) {
@@ -357,9 +357,9 @@ const startEditing = () => {
 }
 
 // 结束编辑
-const endEditing = () => {
+const endEditing = (): void => {
   if (editTitle.value.trim() !== '') {
-    const updatedComponent = {
+    const updatedComponent: ComponentSchema = {
       ...props.component,
       label: editTitle.value.trim()
     }
@@ -369,65 +369,66 @@ const endEditing = () => {
 }
 
 // 取消编辑
-const cancelEditing = () => {
+const cancelEditing = (): void => {
   isEditing.value = false
   editTitle.value = ''
 }
 
 // 处理点击事件
-const handleClick = () => {
+const handleClick = (): void => {
   emit('select', props.component.id)
 }
 
 // 处理删除
-const handleDelete = () => {
+const handleDelete = (): void => {
   emit('delete', props.component.id)
 }
 
 // 处理复制
-const handleCopy = () => {
+const handleCopy = (): void => {
   emit('copy', props.component)
 }
 
 // 处理鼠标按下事件，拦截表单元素的原生行为
-const handleMouseDown = (event) => {
-  // 阻止事件冒泡，确保点击组件时不会触发表单元素的原生行为
+const handleMouseDown = (event: MouseEvent): void => {
   event.stopPropagation()
 }
 
 // 处理组件内部点击事件，确保点击表单元素时也能选中组件
-const handleComponentClick = (event) => {
+const handleComponentClick = (event: MouseEvent): void => {
   event.stopPropagation()
   emit('select', props.component.id)
 }
 
 // 处理拖拽经过
-const handleDragOver = (event) => {
+const handleDragOver = (event: DragEvent): void => {
   event.preventDefault()
-  event.dataTransfer.dropEffect = 'copy'
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
 }
 
 // 处理拖拽放置
-const handleDrop = (event) => {
+const handleDrop = (event: DragEvent): void => {
   event.preventDefault()
-  event.stopPropagation() // 阻止事件冒泡，避免触发父容器的drop事件
-  
+  event.stopPropagation()
+
   try {
-    const dragData = JSON.parse(event.dataTransfer.getData('application/json'))
+    const dragData = JSON.parse(event.dataTransfer?.getData('application/json') || '{}')
     if (dragData.type === 'material' && dragData.material) {
       // 检查子组件数量是否已达上限
       const currentChildren = props.component.children || []
       if (currentChildren.length >= 2) {
         return // 最多支持两个子组件
       }
-      
+
       // 检查是否是subform组件，如果是，不允许嵌套
       if (dragData.material.type === 'subform') {
-        return // 不允许在subform中嵌套subform
+        return
       }
-      
+
       // 创建新组件
-      const newComponent = {
+      const newComponent: ComponentSchema = {
         type: dragData.material.type,
         label: dragData.material.name,
         props: { ...dragData.material.defaultProps },
@@ -437,13 +438,13 @@ const handleDrop = (event) => {
         id: `component_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
         titlePosition: 'left'
       }
-      
+
       // 更新子组件列表
-      const updatedComponent = {
+      const updatedComponent: ComponentSchema = {
         ...props.component,
         children: [...currentChildren, newComponent]
       }
-      
+
       emit('update:component', updatedComponent)
     }
   } catch (error) {
@@ -452,20 +453,25 @@ const handleDrop = (event) => {
 }
 
 // 处理删除子组件
-const handleDeleteChild = (index, id) => {
+const handleDeleteChild = (index: number, _id: string): void => {
   const currentChildren = props.component.children || []
-  const updatedChildren = currentChildren.filter((_, i) => i !== index)
-  
-  const updatedComponent = {
+  const updatedChildren = currentChildren.filter((_child, i) => i !== index)
+
+  const updatedComponent: ComponentSchema = {
     ...props.component,
     children: updatedChildren
   }
-  
+
   emit('update:component', updatedComponent)
 }
 
+// 处理选择事件（递归子组件传递）
+const handleSelect = (id: string): void => {
+  emit('select', id)
+}
+
 // 处理组件更新
-const handleUpdateComponent = (updatedComponent) => {
+const handleUpdateComponent = (updatedComponent: ComponentSchema): void => {
   emit('update:component', updatedComponent)
 }
 </script>
