@@ -1,18 +1,15 @@
-# 会话工作总结 (2026-07-09)
+# 会话工作总结 (2026-07-09 ~ 2026-07-10)
 
-> 本文件记录本次会话中完成的所有功能开发，用于新会话快速恢复上下文。
+> 本文件覆盖两次会话的全部工作，用于新会话快速恢复上下文。
 
 ---
 
-## 一、表单配置 JS 导出（新增功能）
-
-### 目标
-新增声明式表单配置导出通道，输出 `.js` 文件（非 JSON），供运行时动态表单渲染器消费。
+## 一、表单配置 JS 导出（新增功能）【07-09 前次会话】
 
 ### 新增文件
 | 文件 | 说明 |
 |------|------|
-| `src/core/generator/FormConfigGenerator.js` | JS 代码生成器：组件树 → JS 表单配置 |
+| `src/core/generator/FormConfigGenerator.js` | JS 代码生成器：组件树 → JS 表单配置（含自研 `toJS()` 序列化器） |
 
 ### 修改文件
 | 文件 | 改动 |
@@ -20,229 +17,186 @@
 | `src/core/schema/types.ts` | 新增 `FormConfig`、`FieldConfig`、`ValidationRule` 接口 |
 | `src/materials/index.js` | 12 种表单物料新增 `fieldName`、`span`、`visibleCondition`；select/radio/checkbox 额外增加 `pidField`、`optionsType`、`optionsApi` |
 | `src/stores/editorStore.js` | `pageSchema.settings` 增加 `formTitle`、`layout`、`columns` |
-| `src/components/PropertyPanel.vue` | 新增「表单级配置」「布局配置」「高级配置」3 个编辑区；用 `SKIP_PROPS` 过滤重复属性 |
-| `src/App.vue` | 工具栏新增「导出表单配置」按钮，调用 `FormConfigGenerator` |
+| `src/components/PropertyPanel.vue` | 新增「表单级配置」「布局配置」「高级配置」3 个编辑区；`SKIP_PROPS` 过滤 |
+| `src/App.vue` | 工具栏新增「导出表单配置」按钮 |
 
-### 输出格式示例
-```javascript
-const formConfig = {
-  address: {
-    title: '地址选择申请',
-    layout: 'grid',
-    columns: 2,
-    fields: [
-      {
-        key: 'province',
-        label: '省份',
-        type: 'select',
-        span: 12,
-        options: async (_, formData) => { ... },  // 真实函数，非字符串
-        rules: [{required: true, message: '请选择省份', trigger: 'blur'}]
-      },
-      {
-        key: 'city',
-        label: '城市',
-        type: 'select',
-        span: 12,
-        pidField: 'province',
-        visible: (formData) => !!formData.province,
-        options: async (_, formData) => { ... }
-      }
-    ]
-  }
-}
-export default formConfig
+---
+
+## 二、基础功能（前次会话完成）【07-09】
+
+| 功能 | 关键改动 |
+|------|---------|
+| 组件排序 | `insertComponentAt`/`moveComponent` + `calculateInsertionIndex()` + 拖拽手柄 |
+| 键盘快捷键 | `isInputFocused()` 防冲突；Ctrl+Z/Y 撤销重做；Delete 删除；Ctrl+C/V 复制粘贴 |
+| 栅格布局 | grid/inline/vertical 三种模式；`calc((span/24)*100%-8px)` 宽度计算 |
+| 属性面板整理 | `SKIP_PROPS` 集合过滤重复属性；7 个配置区 |
+| Block 容器组件 | `src/materials/base/Block/index.vue`；递归子组件渲染 |
+| JS 导出优化 | `toJS()` 序列化器：函数体直接输出代码、合法标识符不加引号 |
+
+---
+
+## 三、拖拽方案演进（本次会话核心工作）【07-09 ~ 07-10】
+
+### 3.1 第一版 → 第二版：引入 SortableJS（双引擎）
+
+**改动**：
+| 文件 | 改动 |
+|------|------|
+| `src/composables/useDraggable.js` | 移除组件排序相关代码，保留物料拖入 + 键盘快捷键 |
+| `src/core/renderer/CanvasRenderer.vue` | `Sortable.create()` 集成：`draggable: '.lc-component'`、`handle: '.drag-handle'`、`animation: 150`、`onEnd` → `moveComponent` |
+| `src/core/renderer/ComponentRenderer.vue` | 拖拽手柄移除 `draggable="true"`/`@dragstart`/`@dragend`；移除 3 个 dead 函数和 `useEditorStore` |
+| `package.json` | 移除未使用的 `vuedraggable`（Vue 2），保留 `sortablejs` |
+
+**架构**：
+```
+物料面板 ──HTML5 DnD──▶ useDraggable ──▶ CanvasRenderer ──▶ Store
+画布内排序     ──SortableJS──▶ CanvasRenderer ──▶ Store
+```
+
+### 3.2 第二版 → 第三版：vuedraggable 统一方案（最终方案）
+
+**动机**：物料面板的 Element Plus 交互预览（slider/rate/switch）与 SortableJS 鼠标事件冲突 → 简化为纯图标预览 → 可以使用 vuedraggable 的 group+clone 统一所有拖拽。
+
+**改动**：
+
+| 文件 | 改动 |
+|------|------|
+| `src/components/MaterialPanel.vue` | **重写**：移除所有 Element Plus 交互组件预览；改为纯图标 `<el-icon>` + `iconMap`；`<draggable :group="{ pull: 'clone', put: false }" :sort="false" :clone="cloneMaterial">` |
+| `src/core/renderer/CanvasRenderer.vue` | **重写**：SortableJS 裸库 → vuedraggable `<draggable v-model="editorStore.pageSchema.components" group="components" handle=".drag-handle" :animation="150">` + `@change="handleChange"`；移除所有 HTML5 DnD 事件绑定（`@dragover`/`@drop`） |
+| `src/stores/editorStore.js` | **精简**：移除 drag 状态（`isDragging`/`dragType`/`dragPlaceholderStyle`/`insertionIndex`）和对应 setter；**删除 3 个死方法**（`addComponent`/`insertComponentAt`/`moveComponent`——vuedraggable 直接 splice v-model 数组，绕过它们） |
+| `src/composables/useDraggable.js` | **精简为键盘专用**：函数重命名为 `useKeyboard()`；移除所有拖拽函数（`handleDragStart`/`handleDragEnd`/`handleDragOver`/`handleDrop`/`calculateInsertionIndex`） |
+| `src/App.vue` | 移除 `useDraggable` import；移除 CanvasRenderer 的 `@dragover`/`@drop`；键盘快捷键内联在 App.vue 中 |
+| `package.json` | 安装 `vuedraggable@next`（Vue 3 版本） |
+
+### 3.3 最终架构
+
+```
+MaterialPanel                      CanvasRenderer
+┌──────────────────────┐          ┌──────────────────────────┐
+│ <draggable            │  clone   │ <draggable                │
+│   group="components"  │─────────▶│   v-model="pageSchema     │
+│   pull="clone"        │          │           .components"    │
+│   :clone="cloneMaterial"│         │   group="components"      │
+│ >                     │          │   handle=".drag-handle"   │
+└──────────────────────┘          └──────────────────────────┘
+                                            │
+                                    直接 splice 数组
+                                    绕过 addComponent/moveComponent
+```
+
+**关键数据流**：
+```
+cloneMaterial(material)  →  返回完整组件对象（含唯一 ID）
+        ↓
+vuedraggable group "components" 匹配  →  跨容器传输
+        ↓
+v-model="editorStore.pageSchema.components"  →  splice 写入数组
+        ↓
+Pinia 响应式  →  Vue 重渲染  →  ComponentRenderer 显示
+        ↓
+@change="handleChange"  →  selectedId + saveHistory()
 ```
 
 ---
 
-## 二、组件排序（新增功能）
+## 四、文档产出【07-09 ~ 07-10】
 
-### 目标
-画布中已放置的组件支持拖拽重排位置。
-
-### 修改文件
-| 文件 | 改动 |
+| 文件 | 内容 |
 |------|------|
-| `src/stores/editorStore.js` | 新增 `insertComponentAt(component, index)`、`moveComponent(id, toIndex)`；新增 `dragType`、`insertionIndex` 状态 |
-| `src/composables/useDraggable.js` | 重写：支持两种拖拽模式（material 新增 / component 排序）；`calculateInsertionIndex()` 根据鼠标 Y 坐标计算插入位置；修正 `dropEffect` 匹配 `effectAllowed` |
-| `src/core/renderer/CanvasRenderer.vue` | 组件间渲染插入指示线 `drop-indicator`；直接从 store 读取拖拽状态 |
-| `src/core/renderer/ComponentRenderer.vue` | 左侧新增拖拽手柄（Rank 图标，hover 显示）；`@dragstart` 设置组件移动数据 |
-
-### 踩坑：HTML5 Drag & Drop 规范
-组件排序 `effectAllowed = 'move'`，但 `handleDragOver` 统一设 `dropEffect = 'copy'`。浏览器规范要求 `dropEffect` 必须在 `effectAllowed` 允许范围内，`'copy'` 不在 `'move'` 允许范围 → 浏览器静默拒绝 drop。修复：根据 `dragType` 动态设置。
+| `CODE_READING_GUIDE.md` | 渐进式代码阅读指南（6 阶段、12 道面试题、架构演进路径） |
+| `ARCHITECTURE.md` | 整体架构分析（已更新交互层描述） |
+| `MATERIAL_AREA.md` | 物料区实现详解 |
+| `PROJECT_TREE.md` | 项目树结构 |
+| `SESSION_SUMMARY.md` | 本文件 |
 
 ---
 
-## 三、键盘快捷键修复
+## 五、Git 操作【07-09】
 
-### 问题
-属性面板输入框中按 Backspace 会删除整个组件，而非删除文字。
-
-### 原因
-`useDraggable.js` 中 `document.addEventListener('keydown', ...)` 全局监听，Backspace 绑定 `deleteComponent`，输入框中的键盘事件冒泡到 document。
-
-### 修复
-在 `handleKeyDown` 开头增加 `isInputFocused()` 判断：检测 `document.activeElement` 是否为 INPUT/TEXTAREA/SELECT 或 contentEditable，是则直接 return 让浏览器原生处理。同时为所有快捷键增加 `event.preventDefault()` 防止浏览器回退页面等副作用。
+- 提交所有改动：`feat: 完整低代码表单编辑器功能`（21 files, +3259/-382）
+- 后续提交：`feat: 左侧面板element-plus组件替换，vuedraggable插件安装`
+- 远程仓库：`origin → https://gitee.com/czf66666/jat-low-code.git`（用户仓库）
+- 原仓库保持为 upstream：`https://gitee.com/shiroha301/low-code-edit`
 
 ---
 
-## 四、栅格布局（grid/inline/vertical）
-
-### 目标
-画布支持三种布局模式，组件按 `span`（1-24 栅格）控制宽度。
-
-### 修改文件
-| 文件 | 改动 |
-|------|------|
-| `src/core/renderer/CanvasRenderer.vue` | 新增 `canvas-layout-grid/inline/vertical` CSS class；传递 `pageSettings` 给子组件 |
-| `src/core/renderer/ComponentRenderer.vue` | 新增 `componentLayoutStyle` 计算属性：grid 模式 `calc((span/24*100)% - 8px)`，inline 模式 `auto`，vertical 模式 100% |
-| `src/core/renderer/PreviewRenderer.vue` | 同步添加布局 class + 传递 pageSettings（之前预览不响应布局） |
-| `src/components/CodeGenerator.vue` | 生成代码时 el-form 带 `form-layout-*` class + el-form-item 带 span 宽度 style（之前生成的代码无布局） |
-
----
-
-## 五、属性面板整理
-
-### 问题
-`span`、`fieldName`、`pidField` 等属性在通用「属性」区和专用配置区同时出现。
-
-### 修复
-新增 `SKIP_PROPS` 集合 + `visibleProps` 计算属性，过滤掉 7 个已有专用 UI 的属性（span/fieldName/pidField/visibleCondition/optionsType/optionsApi/options）。
-
----
-
-## 六、Block 组件（新增物料）
-
-### 新增文件
-| 文件 | 说明 |
-|------|------|
-| `src/materials/base/Block/index.vue` | 区块容器组件：标题栏 + 子组件递归渲染 + 拖入子组件 + 空状态提示 |
-
-### 修改文件
-| 文件 | 改动 |
-|------|------|
-| `src/materials/index.js` | block 物料补全（propsSchema/defaultProps/defaultStyles/isContainer/childrenTypes）；import + 注册 Block 到 materialComponents |
-| `src/core/renderer/ComponentRenderer.vue` | 新增 `block` 渲染分支（使用 BlockRenderer）；新增 `button` 渲染分支（`<el-button>`） |
-| `src/components/CodeGenerator.vue` | 重写：新增 block 容器生成 + button 按钮生成；`collectFromTree` 递归收集容器内表单字段和验证规则；`containerTypes = ['subform', 'block']` |
-| `src/core/generator/FormConfigGenerator.js` | `collectFields` 改为递归方式，`CONTAINER_TYPES = ['subform', 'block']` |
-
----
-
-## 七、导出的 JS 格式优化
-
-将导出格式从 JSON 改为 JS，关键改进：
-- 字段 key 无引号（`key:` 而非 `"key":`）
-- 函数体（visible/options/render）为真实 JS 代码，非字符串
-- `toJS()` 自定义序列化器：自动识别函数体、合法标识符不加引号、数组/对象合理缩进
-- 顶层 `const formConfig = ...` + `export default formConfig`
-
----
-
-## 当前项目结构（新增/修改的模块标注 ★）
+## 六、当前项目完整文件结构
 
 ```
 src/
-├── core/generator/
-│   └── FormConfigGenerator.js      ★ 新增：JS 表单配置导出
-├── core/schema/types.ts            ★ 修改：新增 FormConfig/FieldConfig 类型
-├── core/renderer/
-│   ├── CanvasRenderer.vue          ★ 修改：布局系统 + 排序指示器
-│   ├── ComponentRenderer.vue       ★ 修改：span 宽度 + 拖拽手柄 + block/button 渲染
-│   └── PreviewRenderer.vue         ★ 修改：布局系统
-├── composables/useDraggable.js     ★ 重写：双模式拖拽 + 输入防冲突
-├── stores/editorStore.js           ★ 修改：移动/插入组件 + 拖拽状态
-├── materials/
-│   ├── index.js                    ★ 修改：物料高级属性 + block 注册
-│   └── base/
-│       ├── Block/index.vue         ★ 新增：区块容器
-│       ├── Button/index.vue
-│       └── Input/index.vue
+├── main.js                                 # 入口：Vue + Pinia + Element Plus
+├── App.vue                                 # 根组件：三栏布局 + 键盘快捷键内联
+├── style.css                               # 全局样式
+├── assets/                                 # 静态资源
 ├── components/
-│   ├── PropertyPanel.vue           ★ 修改：7 个配置区 + 重复过滤
-│   ├── CodeGenerator.vue           ★ 重写：递归容器 + block/button 生成 + 布局
-│   └── MaterialPanel.vue
-└── App.vue                         ★ 修改：导出按钮 + 布局集成
+│   ├── MaterialPanel.vue                   # ★ 物料面板：vuedraggable clone 源 + 纯图标
+│   ├── PropertyPanel.vue                   # 属性面板：7 个配置区
+│   └── CodeGenerator.vue                   # Vue SFC 代码生成器
+├── composables/
+│   └── useDraggable.js                     # ★ 精简为 useKeyboard()：仅键盘快捷键
+├── core/
+│   ├── renderer/
+│   │   ├── CanvasRenderer.vue              # ★ vuedraggable 接收端 + 排序
+│   │   ├── ComponentRenderer.vue           # 共享渲染器（设计/预览态）
+│   │   └── PreviewRenderer.vue             # 预览渲染器
+│   ├── schema/
+│   │   ├── types.ts                        # 类型定义
+│   │   ├── validator.ts                    # Schema 校验
+│   │   └── version.ts                      # 版本管理
+│   └── generator/
+│       └── FormConfigGenerator.js          # JS 表单配置导出 + toJS 序列化器
+├── materials/
+│   ├── index.js                            # 物料注册中心（16 种物料元数据）
+│   └── base/
+│       ├── Block/index.vue                 # Block 容器组件
+│       ├── Button/index.vue                # Button 物料
+│       └── Input/index.vue                 # Input 物料
+└── stores/
+    └── editorStore.js                      # ★ 精简：无拖拽状态，10 个 actions
 ```
 
 ---
 
-## 关键数据流
+## 七、当前 editorStore 结构（10 个 actions）
 
-```
-物料面板 ──drag──▶ 画布 ──▶ Store (pageSchema.components)
-                        │
-              ┌─────────┼─────────┐
-              ▼         ▼         ▼
-         Schema导出  JS配置导出  Vue SFC代码
-         (JSON)     (.js 可运行)  (完整组件)
-```
-
-## 布局系统
-
-```
-pageSettings.layout ──▶ grid / inline / vertical
-component.props.span ──▶ 宽度 = (span/24) × 100%
-                        │
-         ┌──────────────┼──────────────┐
-         ▼              ▼              ▼
-   CanvasRenderer  PreviewRenderer  CodeGenerator
-   (实时编辑)       (预览)           (代码生成)
-```
-
-## 容器递归
-
-```
-subform / block 容器
-  └─ children[] 递归展开
-       ├─ CodeGenerator: collectFromTree() 收集字段+规则
-       └─ FormConfigGenerator: collectFields() 递归展开
-```
+| Action | 调用方 | 用途 |
+|--------|--------|------|
+| `initializeStore` | App.vue | 启动时初始化撤销栈 |
+| `deleteComponent` | App.vue（键盘 Delete） | 递归删除组件 |
+| `updateComponent` | App.vue（属性面板） | Object.assign 合并更新 |
+| `copyComponent` | App.vue（Ctrl+C） | 深拷贝到剪贴板 |
+| `pasteComponent` | App.vue（Ctrl+V） | 从剪贴板粘贴 |
+| `selectComponent` | App.vue（画布点击） | 选中组件 |
+| `saveHistory` | CanvasRenderer `@change` | 快照入栈 |
+| `undo` | App.vue（撤销按钮/Ctrl+Z） | 快照恢复 |
+| `importSchema` | App.vue（导入按钮） | 从文件恢复 |
+| `exportSchema` | App.vue（导出按钮） | 导出为 JSON |
 
 ---
 
+## 八、已知注意事项
+
+1. **vuedraggable `@change` 不响应外部删除**：`deleteComponent` 是 JS 代码 splice 数组，不触发 vuedraggable 的 `@change`（只有拖拽触发的 added/moved/removed 才触发）。`saveHistory()` 由 `deleteComponent` 内部直接调用，功能正确。
+
+2. **`redo()` 方法缺失**：App.vue 和 useDraggable.js 中调用了 `editorStore.redo()`，但 editorStore 中没有 `redo` 方法，Ctrl+Y 会报错（待修复）。
+
+3. **物料组件映射不完整**：`materialComponents` 中只有 button/input/block 有专用 .vue 文件，其余 13 种由 ComponentRenderer 内联渲染 Element Plus。
+
+4. **ComponentRenderer 可维护性**：16 种组件的渲染逻辑集中在一个文件中（648 行），新增类型需修改此文件 + CodeGenerator + MaterialPanel iconMap。
+
+5. **容器子组件拖入仍用 HTML5 DnD**：ComponentRenderer 的 subform 分支使用原生 `@dragover`/`@drop` 处理子组件拖入，未迁移到 vuedraggable。
+
+6. `IMPLEMENTATION_PLAN.md` 保留作为原始设计方案参考。
+
 ---
 
-## 八、引入 SortableJS 替代原生组件排序拖拽（2026-07-09）
+## 九、关键面试要点
 
-### 目标
-用 SortableJS（`sortablejs` npm 包）替代原先基于原生 HTML5 Drag & Drop API 的画布内组件排序，保留物料拖入使用原生 API。
-
-### 架构：双引擎拖拽
-
-```
-物料面板 ──HTML5 DnD──▶ 画布（useDraggable.js）
-画布内排序     ──SortableJS──▶ 画布（CanvasRenderer.vue 中集成）
-键盘快捷键     ──useDraggable.js
-```
-
-### 修改文件
-
-| 文件 | 改动 |
-|------|------|
-| `src/composables/useDraggable.js` | 移除 `handleComponentDragStart`、组件排序逻辑；`handleDragOver` 统一 `dropEffect='copy'`；`handleDrop` 仅处理物料创建；不再导出 `handleComponentDragStart` |
-| `src/core/renderer/CanvasRenderer.vue` | 新增 `Sortable.create()` 集成：`draggable: '.lc-component'`、`handle: '.drag-handle'`、`animation: 150`；`onEnd` 回调调用 `editorStore.moveComponent()`；新增 ghost/chosen/drag CSS class |
-| `src/core/renderer/ComponentRenderer.vue` | 拖拽手柄移除 `draggable="true"` 和 `@dragstart`/`@dragend`（SortableJS 自动接管）；移除 3 个 dead 函数（`handleComponentDragStart`/`handleDragStart`/`handleDragEndEmit`）；移除未使用的 `useEditorStore` 引用 |
-| `package.json` | 移除未使用的 `vuedraggable`（Vue 2 版本），保留 `sortablejs` |
-| `ARCHITECTURE.md` | 更新交互层描述 |
-| `CODE_READING_GUIDE.md` | 重写第三阶段：双引擎拖拽章节 + 新增 SortableJS 面试题 |
-
-### SortableJS 关键优势 vs 原生方案
-
-| 维度 | 原生 HTML5 DnD（旧） | SortableJS（新） |
-|------|---------------------|-----------------|
-| 动画 | 无 | 150ms 平滑过渡 |
-| 移动端 | 不支持 | 原生触摸支持 |
-| 边界处理 | 手写 | 库已处理 |
-| 代码量 | ~60 行分散在 3 个文件 | ~25 行集中在 initSortable |
-| dropEffect 坑 | 有（move vs copy 匹配问题） | 无（不使用 HTML5 DnD） |
-
-### 为什么 SortableJS 和 HTML5 DnD 不冲突
-SortableJS 使用鼠标/触摸事件（mousedown/mousemove/mouseup），HTML5 DnD 使用拖拽事件（dragstart/dragover/drop），两套独立的事件系统在同一画布上共存。
-
-### 已知注意事项
-
-1. `useDraggable` 在 `App.vue` 和 `MaterialPanel.vue` 中各实例化一次，键盘监听器双份（功能正确但可优化为单例）
-2. 物料 `materialComponents` 中只有 button/input/block 有专用组件，其余类型由 ComponentRenderer 内联渲染
-3. JS 导出的函数体字符串由 `isCodeExpression()` 检测（以 `(`/`async`/`function` 开头即为代码）
-4. `IMPLEMENTATION_PLAN.md` 保留作为原始设计方案参考
+- **Schema 驱动架构**：PageSchema → ComponentSchema 两级数据模型
+- **共享渲染器模式**：selectedId prop 控制设计/预览态切换
+- **vuedraggable 统一拖拽**：group+clone 机制，v-model 直接绑定 Store 数组
+- **拖拽方案演进**：原生 DnD → 双引擎（DnD+SortableJS）→ vuedraggable 统一
+- **toJS 序列化器**：区分代码字符串和普通字符串，输出可运行的 JS 配置
+- **撤销重做**：快照栈模式，深拷贝，上限 50 条
+- **输入防冲突**：isInputFocused() 前置检查
+- **24 栅格布局**：grid/inline/vertical + calc() 动态宽度

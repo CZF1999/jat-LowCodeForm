@@ -96,50 +96,6 @@ export const useEditorStore = defineStore('editor', {
       this.history.currentIndex = 0
     },
 
-    // 添加组件
-    addComponent(component) {
-      const newComponent = {
-        ...component,
-        id: generateId(),
-        titlePosition: component.titlePosition || 'left'
-      }
-
-      this.pageSchema.components.push(newComponent)
-      this.saveHistory()
-      this.selectedId = newComponent.id
-      return newComponent
-    },
-
-    // 在指定位置插入组件
-    insertComponentAt(component, index) {
-      const newComponent = {
-        ...component,
-        id: component.id || generateId(),
-        titlePosition: component.titlePosition || 'left'
-      }
-      const targetIndex = Math.max(0, Math.min(index, this.pageSchema.components.length))
-      this.pageSchema.components.splice(targetIndex, 0, newComponent)
-      this.saveHistory()
-      this.selectedId = newComponent.id
-      return newComponent
-    },
-
-    // 移动组件：将指定 id 的组件移动到目标索引
-    moveComponent(id, toIndex) {
-      const components = this.pageSchema.components
-      const fromIndex = components.findIndex(c => c.id === id)
-      if (fromIndex === -1) return false
-
-      const targetIndex = Math.max(0, Math.min(toIndex, components.length - 1))
-      if (fromIndex === targetIndex) return false
-
-      const [moved] = components.splice(fromIndex, 1)
-      const adjustedIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
-      components.splice(adjustedIndex, 0, moved)
-      this.saveHistory()
-      return true
-    },
-
     // 删除组件
     deleteComponent(id) {
       // 递归删除组件

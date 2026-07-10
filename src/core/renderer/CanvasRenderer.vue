@@ -58,10 +58,11 @@ const props = defineProps({
 const emit = defineEmits(['select', 'delete', 'copy', 'update:component'])
 
 const handleChange = (evt) => {
+  console.log('handleChange', evt)
   if (evt.added) {
-    editorStore.selectedId = evt.added.element.id
+    editorStore.selectedId = evt.added.element.id // 拖入新组件后自动选中
   }
-  editorStore.saveHistory()
+  editorStore.saveHistory() // 任何排序/增删都记录到撤销栈
 }
 
 const handleSelect = (id) => {
