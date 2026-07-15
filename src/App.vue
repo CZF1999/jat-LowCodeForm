@@ -30,6 +30,14 @@
           <el-icon><Document /></el-icon>
           导出 TS 配置
         </el-button>
+        <el-button type="warning" @click="handleExportAsyncValidator">
+          <el-icon><Document /></el-icon>
+          导出校验规则
+        </el-button>
+        <el-button type="warning" @click="handleExportFormModule">
+          <el-icon><Document /></el-icon>
+          导出表单模块
+        </el-button>
         <el-button type="primary" @click="showCodeDialog = true">
           <el-icon><Document /></el-icon>
           生成代码
@@ -98,7 +106,7 @@ import CanvasRenderer from './core/renderer/CanvasRenderer.vue'
 import PreviewRenderer from './core/renderer/PreviewRenderer.vue'
 import PropertyPanel from './components/PropertyPanel.vue'
 import CodeGenerator from './components/CodeGenerator.vue'
-import { generateFormConfigJS, generateFormConfigTS } from './core/generator/FormConfigGenerator'
+import { generateFormConfigJS, generateFormConfigTS, generateAsyncValidatorRules, generateFormLogicModule } from './core/generator/FormConfigGenerator'
 import { useEditorStore } from './stores/editorStore'
 import type { ComponentSchema } from './core/schema/types'
 
@@ -257,6 +265,49 @@ const handleExportFormConfigTS = (): void => {
   link.click()
   URL.revokeObjectURL(url)
   ElMessage.success('TS 配置已导出')
+}
+
+// 导出 async-validator 校验规则
+const handleExportAsyncValidator = (): void => {
+  const components = editorStore.components
+  if (components.length === 0) {
+    ElMessage.warning('请先添加表单组件')
+    return
+  }
+  const tsCode = generateAsyncValidatorRules(components, editorStore.pageSchema.settings)
+  const dataBlob = new Blob([tsCode], { type: 'application/typescript' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'form-rules.ts'
+  link.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('async-validator 校验规则已导出')
+}
+
+// 导出完整表单逻辑模块
+const handleExportFormModule = (): void => {
+  const components = editorStore.components
+  if (components.length === 0) {
+    ElMessage.warning('请先添加表单组件')
+    return
+  }
+  const settings = editorStore.pageSchema.settings
+  const tsCode = generateFormLogicModule(components, settings)
+  // 推导文件名：formTitle 转驼峰
+  const title: string = settings.formTitle || 'form'
+  const moduleName = 'use' + title
+    .replace(/[\s_-]+(.)/g, (_m: string, c: string) => c.toUpperCase())
+    .replace(/[\s_-]+/g, '')
+    .replace(/^./, (c: string) => c.toUpperCase()) + 'Form'
+  const dataBlob = new Blob([tsCode], { type: 'application/typescript' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = moduleName + '.ts'
+  link.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('表单模块已导出')
 }
 
 // 导出数据结构
