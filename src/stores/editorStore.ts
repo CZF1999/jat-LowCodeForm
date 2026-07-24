@@ -3,10 +3,10 @@ import { defineStore } from 'pinia'
 import { CURRENT_SCHEMA_VERSION } from '../core/schema/version'
 import type { ComponentSchema, PageSchema } from '../core/schema/types'
 
-// 历史记录条目
+// 历史记录条目（双栈模式：past 存放可撤销的历史，future 存放可重做的历史）
 interface HistoryEntry {
-  stack: PageSchema[]
-  currentIndex: number
+  past: PageSchema[]
+  future: PageSchema[]
   maxSize: number
 }
 
@@ -21,6 +21,11 @@ interface EditorState {
 // 生成唯一ID
 function generateId(): string {
   return 'component_' + Date.now() + '_' + Math.floor(Math.random() * 10000)
+}
+
+// 深拷贝页面Schema
+function cloneSchema(schema: PageSchema): PageSchema {
+  return JSON.parse(JSON.stringify(schema))
 }
 
 // 定义编辑器状态
@@ -52,10 +57,10 @@ export const useEditorStore = defineStore('editor', {
     selectedId: null,
     // 剪贴板
     clipboard: [],
-    // 历史记录
+    // 历史记录（双栈模式）
     history: {
-      stack: [],
-      currentIndex: -1,
+      past: [],
+      future: [],
       maxSize: 50
     }
   }),
@@ -100,16 +105,20 @@ export const useEditorStore = defineStore('editor', {
       }
       ensureTitlePosition(state.pageSchema.components)
       return state.pageSchema.components
-    }
+    },
+    // 是否可以撤销（past 长度 > 1 才有"上一个状态"可回退，past[0] 是初始基线）
+    canUndo: (state): boolean => state.history.past.length > 1,
+    // 是否可以重做
+    canRedo: (state): boolean => state.history.future.length > 0
   },
 
   actions: {
     // 初始化时保存初始状态
     initializeStore(): void {
-      // 保存初始状态到历史记录
-      const initialSnapshot: PageSchema = JSON.parse(JSON.stringify(this.pageSchema))
-      this.history.stack = [initialSnapshot]
-      this.history.currentIndex = 0
+      // 保存初始状态到 past 栈（作为最老的基线，保证 undo 能回到初始状态）
+      const initialSnapshot: PageSchema = cloneSchema(this.pageSchema)
+      this.history.past = [initialSnapshot]
+      this.history.future = []
     },
 
     // 删除组件
@@ -181,42 +190,42 @@ export const useEditorStore = defineStore('editor', {
       this.selectedId = id
     },
 
-    // 保存历史记录
+    // 保存历史记录（双栈模式）
     saveHistory(): void {
-      // 限制历史记录长度
-      if (this.history.currentIndex < this.history.stack.length - 1) {
-        this.history.stack = this.history.stack.slice(0, this.history.currentIndex + 1)
-      }
+      // 将当前状态推入 past 栈
+      const snapshot: PageSchema = cloneSchema(this.pageSchema)
+      this.history.past.push(snapshot)
 
-      // 深拷贝当前状态
-      const snapshot: PageSchema = JSON.parse(JSON.stringify(this.pageSchema))
-      this.history.stack.push(snapshot)
+      // 新操作使旧的"未来"分支失效，清空 future 栈
+      this.history.future = []
 
-      // 保持历史记录在最大长度以内
-      if (this.history.stack.length > this.history.maxSize) {
-        this.history.stack.shift()
-      } else {
-        this.history.currentIndex++
+      // 保持 past 栈在最大长度以内（移除最老的历史）
+      if (this.history.past.length > this.history.maxSize) {
+        this.history.past.shift()
       }
     },
 
     // 撤销
     undo(): void {
-      if (this.history.currentIndex > 0) {
-        this.history.currentIndex--
-        const previousState: PageSchema = JSON.parse(JSON.stringify(this.history.stack[this.history.currentIndex]))
-        // 逐个属性更新，确保Vue响应式系统能正确追踪变化
-        Object.assign(this.pageSchema, previousState)
-      }
+      // past 至少需要 2 个条目：初始基线 + 至少一次操作才能撤销
+      if (this.history.past.length <= 1) return
+
+      // 将栈顶（当前状态）弹入 future 栈，以便后续重做
+      this.history.future.push(this.history.past.pop()!)
+
+      // 次栈顶为上一个状态，peek 后恢复
+      const previousState = cloneSchema(this.history.past[this.history.past.length - 1])
+      Object.assign(this.pageSchema, previousState)
     },
 
     // 重做
     redo(): void {
-      if (this.history.currentIndex < this.history.stack.length - 1) {
-        this.history.currentIndex++
-        const nextState: PageSchema = JSON.parse(JSON.stringify(this.history.stack[this.history.currentIndex]))
-        Object.assign(this.pageSchema, nextState)
-      }
+      if (this.history.future.length === 0) return
+
+      // 从 future 栈弹出被撤销的状态，推回 past 栈并恢复
+      const nextState = this.history.future.pop()!
+      this.history.past.push(nextState)
+      Object.assign(this.pageSchema, cloneSchema(nextState))
     },
 
     // 导入Schema
@@ -227,7 +236,7 @@ export const useEditorStore = defineStore('editor', {
 
     // 导出Schema
     exportSchema(): PageSchema {
-      return JSON.parse(JSON.stringify(this.pageSchema))
+      return cloneSchema(this.pageSchema)
     }
   }
 })

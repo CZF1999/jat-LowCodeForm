@@ -22,6 +22,10 @@
           <el-icon><ArrowLeft /></el-icon>
           撤销
         </el-button>
+        <el-button @click="editorStore.redo">
+          <el-icon><ArrowLeft /></el-icon>
+          重做
+        </el-button>
         <el-button type="success" @click="handleExportFormConfig">
           <el-icon><Document /></el-icon>
           导出 JS 配置
