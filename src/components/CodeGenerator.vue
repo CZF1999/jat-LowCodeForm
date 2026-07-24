@@ -350,7 +350,9 @@ const genAsyncLoadFunctions = (): string => {
     const fnName = 'load' + info.fieldName.charAt(0).toUpperCase() + info.fieldName.slice(1) + 'Options'
     code += '\n// 加载 ' + info.fieldName + ' 的选项\n'
     code += 'const ' + fnName + ' = async () => {\n'
-    code += '  const res = await (' + info.optionsApi + ')(null, form.value)\n'
+    // 级联场景：将父级字段当前值作为第一个参数传入 API
+    const parentArg = info.pidField ? 'form.value.' + info.pidField : 'null'
+    code += '  const res = await (' + info.optionsApi + ')(' + parentArg + ', form.value)\n'
     code += '  ' + info.fieldName + 'Options.value = res || []\n'
     code += '}\n'
   })
