@@ -35,7 +35,7 @@ import { computed } from 'vue'
 import draggable from 'vuedraggable'
 import {
   Edit, Document, Grid, Operation, Calendar, Clock,
-  Star, CircleCheck, ArrowDown, Minus, Upload, Tickets
+  Star, CircleCheck, ArrowDown, Minus, Upload, Tickets, Menu
 } from '@element-plus/icons-vue'
 import { getMaterials } from '../materials'
 import type { ComponentSchema } from '../core/schema/types'
@@ -73,6 +73,7 @@ const iconMap: Record<string, any> = {
   radio: CircleCheck,
   checkbox: Operation,
   select: ArrowDown,
+  cascader: Menu,
   date: Calendar,
   time: Clock,
   switch: Operation,

@@ -81,6 +81,13 @@ export interface ValidationRule {
   type?: string;
 }
 
+// 级联选择器选项（树形结构）
+export interface CascaderOption {
+  label: string
+  value: any
+  children?: CascaderOption[]
+}
+
 // 单个字段配置
 export interface FieldConfig {
   key: string;

@@ -5,14 +5,15 @@ import type { ComponentSchema, FieldConfig, FormConfig, ValidationRule } from '.
 
 // 表单组件类型（生成 field 的类型）
 const FORM_COMPONENT_TYPES: string[] = [
-  'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
+  'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'cascader',
   'date', 'time', 'switch', 'slider', 'rate', 'upload'
 ]
 
 // 内部元数据属性（不应输出到 props 中）
 const META_PROPS: string[] = [
   'fieldName', 'span', 'pidField', 'visibleCondition',
-  'optionsType', 'optionsApi', 'options', 'defaultValue'
+  'optionsType', 'optionsApi', 'options', 'defaultValue',
+  'separator', 'multiple', 'checkStrictly', 'emitPath'
 ]
 
 // 获取数据类型默认值
@@ -21,6 +22,7 @@ const getDefaultValue = (type: string): string | number | boolean | string[] => 
     case 'input':
     case 'textarea':
     case 'select':
+    case 'cascader':
     case 'date':
     case 'time':
     case 'radio':
@@ -166,7 +168,7 @@ const generateField = (component: ComponentSchema): FieldConfig => {
   }
 
   // 选项（select / radio / checkbox）
-  if (['select', 'radio', 'checkbox'].includes(component.type)) {
+  if (['select', 'radio', 'checkbox', 'cascader'].includes(component.type)) {
     const options = generateOptions(component)
     if (options !== undefined) {
       field.options = options
@@ -374,6 +376,7 @@ const TS_TYPE_MAP: Record<string, string> = {
   'radio': 'string',
   'checkbox': 'string[]',
   'select': 'string',
+  'cascader': 'string',
   'date': 'string',
   'time': 'string',
   'switch': 'boolean',

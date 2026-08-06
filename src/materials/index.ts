@@ -4,6 +4,7 @@ import type { MaterialMeta } from '../core/schema/types'
 import Button from './base/Button/index.vue'
 import Input from './base/Input/index.vue'
 import Block from './base/Block/index.vue'
+import Cascader from './base/Cascader/index.vue'
 
 // PropSchema 中每个属性的定义
 interface PropSchemaItem {
@@ -65,7 +66,7 @@ const materials: MaterialDef[] = [
       margin: '8px 0'
     },
     isContainer: true,
-    childrenTypes: ['button', 'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'date', 'time', 'switch', 'slider', 'rate', 'upload', 'static-text']
+    childrenTypes: ['button', 'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'cascader', 'date', 'time', 'switch', 'slider', 'rate', 'upload', 'static-text']
   },
   {
     type: 'button',
@@ -496,6 +497,111 @@ const materials: MaterialDef[] = [
     isContainer: false
   },
   {
+    type: 'cascader',
+    name: '级联选择器',
+    icon: 'Menu',
+    category: 'form',
+    version: '1.0.0',
+    propsSchema: {
+      options: {
+        type: 'array',
+        default: [
+          { label: '北京', value: 'beijing', children: [
+            { label: '海淀区', value: 'haidian' },
+            { label: '朝阳区', value: 'chaoyang' }
+          ]},
+          { label: '上海', value: 'shanghai', children: [
+            { label: '浦东新区', value: 'pudong' },
+            { label: '黄浦区', value: 'huangpu' }
+          ]}
+        ]
+      },
+      placeholder: {
+        type: 'string',
+        default: '请选择'
+      },
+      disabled: {
+        type: 'boolean',
+        default: false
+      },
+      size: {
+        type: 'string',
+        enum: ['large', 'medium', 'small'],
+        default: 'small'
+      },
+      separator: {
+        type: 'string',
+        default: '/'
+      },
+      multiple: {
+        type: 'boolean',
+        default: false
+      },
+      checkStrictly: {
+        type: 'boolean',
+        default: false
+      },
+      emitPath: {
+        type: 'boolean',
+        default: false
+      },
+      fieldName: {
+        type: 'string',
+        default: ''
+      },
+      span: {
+        type: 'number',
+        default: 24
+      },
+      visibleCondition: {
+        type: 'string',
+        default: ''
+      },
+      pidField: {
+        type: 'string',
+        default: ''
+      },
+      optionsType: {
+        type: 'string',
+        enum: ['static', 'async'],
+        default: 'static'
+      },
+      optionsApi: {
+        type: 'string',
+        default: ''
+      }
+    },
+    defaultProps: {
+      options: [
+        { label: '北京', value: 'beijing', children: [
+          { label: '海淀区', value: 'haidian' },
+          { label: '朝阳区', value: 'chaoyang' }
+        ]},
+        { label: '上海', value: 'shanghai', children: [
+          { label: '浦东新区', value: 'pudong' },
+          { label: '黄浦区', value: 'huangpu' }
+        ]}
+      ],
+      placeholder: '请选择',
+      disabled: false,
+      size: 'small',
+      separator: '/',
+      multiple: false,
+      checkStrictly: false,
+      emitPath: false,
+      fieldName: '',
+      span: 24,
+      visibleCondition: '',
+      pidField: '',
+      optionsType: 'static',
+      optionsApi: ''
+    },
+    defaultStyles: {
+      width: '100%'
+    },
+    isContainer: false
+  },
+  {
     type: 'date',
     name: '日期选择器',
     icon: 'Document',
@@ -909,7 +1015,7 @@ const materials: MaterialDef[] = [
       borderRadius: '4px'
     },
     isContainer: true,
-    childrenTypes: ['button', 'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'date', 'time', 'switch', 'slider', 'rate', 'upload', 'static-text']
+    childrenTypes: ['button', 'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'cascader', 'date', 'time', 'switch', 'slider', 'rate', 'upload', 'static-text']
   }
 ]
 
@@ -917,7 +1023,8 @@ const materials: MaterialDef[] = [
 const materialComponents: Record<string, Component> = {
   button: Button,
   input: Input,
-  block: Block
+  block: Block,
+  cascader: Cascader
 }
 
 // 获取物料列表

@@ -184,7 +184,7 @@
               placeholder="留空则自动生成"
             />
           </el-form-item>
-          <el-form-item label="依赖字段 (pidField)" v-if="selectedComponent.type === 'select'">
+          <el-form-item label="依赖字段 (pidField)" v-if="['select','cascader'].includes(selectedComponent.type)">
             <el-select
               v-model="selectedComponent.props.pidField"
               @change="updateComponent"
@@ -207,7 +207,7 @@
               placeholder="如: !!formData.province"
             />
           </el-form-item>
-          <el-form-item label="选项来源" v-if="['select','radio','checkbox'].includes(selectedComponent.type)">
+          <el-form-item label="选项来源" v-if="['select','radio','checkbox','cascader'].includes(selectedComponent.type)">
             <el-select
               v-model="selectedComponent.props.optionsType"
               @change="updateComponent"
@@ -217,7 +217,7 @@
               <el-option label="异步加载" value="async"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item label="异步选项函数体" v-if="['select','radio','checkbox'].includes(selectedComponent.type) && selectedComponent.props.optionsType === 'async'">
+          <el-form-item label="异步选项函数体" v-if="['select','radio','checkbox','cascader'].includes(selectedComponent.type) && selectedComponent.props.optionsType === 'async'">
             <el-input
               v-model="selectedComponent.props.optionsApi"
               @input="updateComponent"
@@ -232,37 +232,45 @@
       <!-- 选项编辑 -->
       <div class="property-section" v-if="hasOptions">
         <h4>选项配置</h4>
-        <div class="options-container">
-          <div 
-            v-for="(option, index) in options" 
+        <!-- 级联选择器：树形选项编辑器 -->
+        <div v-if="selectedComponent.type === 'cascader'" class="options-container">
+          <TreeOptionEditor
+            v-model="treeOptions"
+            :depth="0"
+          />
+        </div>
+        <!-- 其他组件：扁平选项编辑器 -->
+        <div v-else class="options-container">
+          <div
+            v-for="(option, index) in options"
             :key="index"
             class="option-item"
           >
             <div class="option-inputs">
-              <el-input 
-                v-model="option.label" 
-                placeholder="选项文本" 
+              <el-input
+                v-model="option.label"
+                placeholder="选项文本"
                 size="small"
                 @input="updateOptions"
               />
-              <el-input 
-                v-model="option.value" 
-                placeholder="选项值" 
+              <el-input
+                v-model="option.value"
+                placeholder="选项值"
                 size="small"
                 @input="updateOptions"
               />
             </div>
-            <el-button 
-              size="small" 
-              type="danger" 
+            <el-button
+              size="small"
+              type="danger"
               @click="removeOption(index)"
             >
               删除
             </el-button>
           </div>
-          <el-button 
-            size="small" 
-            type="primary" 
+          <el-button
+            size="small"
+            type="primary"
             @click="addOption"
             class="add-option-btn"
           >
@@ -292,7 +300,8 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
-import type { ComponentSchema } from '../core/schema/types'
+import TreeOptionEditor from './TreeOptionEditor.vue'
+import type { ComponentSchema, CascaderOption } from '../core/schema/types'
 
 const editorStore = useEditorStore()
 
@@ -313,7 +322,7 @@ const updatePageSettings = (): void => {
 
 // 表单组件类型列表（完整版）
 const formComponentTypes: string[] = [
-  'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
+  'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'cascader',
   'date', 'time', 'switch', 'slider', 'rate', 'upload'
 ]
 
@@ -345,7 +354,11 @@ const SKIP_PROPS: Set<string> = new Set([
   'visibleCondition', // → 高级配置
   'optionsType',      // → 高级配置
   'optionsApi',       // → 高级配置
-  'options'           // → 选项配置
+  'options',          // → 选项配置
+  'separator',        // → cascader 原生属性（通用属性区渲染）
+  'multiple',         // → cascader 原生属性（通用属性区渲染）
+  'checkStrictly',    // → cascader 原生属性（通用属性区渲染）
+  'emitPath'          // → cascader 原生属性（通用属性区渲染）
 ])
 
 // 过滤掉已有专用 UI 的属性
@@ -376,7 +389,11 @@ const propertyLabels: Record<string, string> = {
   fontSize: '字体大小',
   color: '颜色',
   direction: '方向',
-  align: '对齐方式'
+  align: '对齐方式',
+  separator: '分隔符',
+  multiple: '多选',
+  checkStrictly: '任意级可选',
+  emitPath: '返回完整路径'
 }
 
 // 样式标签映射
@@ -467,7 +484,7 @@ watch(selectedComponent, (_newVal) => {
 // 是否有选项属性
 const hasOptions = computed(() => {
   return selectedComponent.value &&
-    ['select', 'radio', 'checkbox'].includes(selectedComponent.value.type) &&
+    ['select', 'radio', 'checkbox', 'cascader'].includes(selectedComponent.value.type) &&
     selectedComponent.value.props &&
     Array.isArray(selectedComponent.value.props.options)
 })
@@ -506,6 +523,20 @@ const updateOptions = (): void => {
     updateComponent()
   }
 }
+
+// 树形选项（级联选择器专用）
+const treeOptions = computed<CascaderOption[]>({
+  get: (): CascaderOption[] => {
+    if (!hasOptions.value || selectedComponent.value?.type !== 'cascader') return []
+    return selectedComponent.value!.props.options as CascaderOption[]
+  },
+  set: (value: CascaderOption[]) => {
+    if (selectedComponent.value && selectedComponent.value.props) {
+      selectedComponent.value.props.options = value
+      updateComponent()
+    }
+  }
+})
 </script>
 
 <style scoped>

@@ -22,21 +22,21 @@
     </div>
 
     <!-- 可编辑的表单元素标题（subform、static-text和divider除外） -->
-            <div v-if="component.type !== 'subform' && component.type !== 'static-text' && component.type !== 'divider'" class="component-title" @click.stop="startEditing">
-              <div v-if="!isEditing" class="title-text">
-                {{ component.label || getDefaultLabel(component.type) }}
-              </div>
-              <el-input
-                v-else
-                v-model="editTitle"
-                size="small"
-                class="title-input"
-                @blur="endEditing"
-                @keyup.enter="endEditing"
-                @keyup.esc="cancelEditing"
-                ref="titleInputRef"
-              />
-            </div>
+    <div v-if="component.type !== 'subform' && component.type !== 'static-text' && component.type !== 'divider'" class="component-title" @click.stop="startEditing">
+      <div v-if="!isEditing" class="title-text">
+        {{ component.label || getDefaultLabel(component.type) }}
+      </div>
+      <el-input
+        v-else
+        v-model="editTitle"
+        size="small"
+        class="title-input"
+        @blur="endEditing"
+        @keyup.enter="endEditing"
+        @keyup.esc="cancelEditing"
+        ref="titleInputRef"
+      />
+    </div>
     
     <!-- 渲染具体组件 -->
     <div class="component-content" @click="handleComponentClick">
@@ -93,6 +93,13 @@
             :value="option.value"
           />
         </el-select>
+      </template>
+      <template v-else-if="component.type === 'cascader'">
+        <el-cascader
+          v-bind="component.props"
+          v-on="component.events"
+          @click.stop="handleComponentClick"
+        />
       </template>
       <template v-else-if="component.type === 'subform'">
         <div
@@ -301,6 +308,7 @@ const materialComponents: Record<string, string> = {
   radio: 'el-radio-group',
   checkbox: 'el-checkbox-group',
   select: 'el-select',
+  cascader: 'el-cascader',
   date: 'el-date-picker',
   time: 'el-time-picker',
   switch: 'el-switch',
@@ -329,6 +337,7 @@ const getDefaultLabel = (type: string): string => {
     radio: 'Radio Group',
     checkbox: 'Checkbox Group',
     select: 'Select',
+    cascader: 'Cascader',
     date: 'Date Picker',
     time: 'Time Picker',
     switch: 'Switch',
@@ -566,6 +575,7 @@ const handleUpdateComponent = (updatedComponent: ComponentSchema): void => {
 /* 确保所有表单组件默认宽度为100% */
 .lc-component .component-content :deep(el-input),
 .lc-component .component-content :deep(el-select),
+.lc-component .component-content :deep(el-cascader),
 .lc-component .component-content :deep(el-date-picker),
 .lc-component .component-content :deep(el-time-picker),
 .lc-component .component-content :deep(el-textarea),

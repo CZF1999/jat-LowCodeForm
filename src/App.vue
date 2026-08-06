@@ -7,91 +7,93 @@
       </div>
       <div class="toolbar-right">
         <el-button type="primary" @click="showPreview = true">
-          <el-icon><View /></el-icon>
+          <el-icon>
+            <View />
+          </el-icon>
           预览
         </el-button>
         <el-button type="primary" @click="handleExport">
-          <el-icon><Download /></el-icon>
+          <el-icon>
+            <Download />
+          </el-icon>
           导出
         </el-button>
         <el-button @click="handleImport">
-          <el-icon><Upload /></el-icon>
+          <el-icon>
+            <Upload />
+          </el-icon>
           导入
         </el-button>
         <el-button @click="editorStore.undo">
-          <el-icon><ArrowLeft /></el-icon>
+          <el-icon>
+            <ArrowLeft />
+          </el-icon>
           撤销
         </el-button>
         <el-button @click="editorStore.redo">
-          <el-icon><ArrowLeft /></el-icon>
+          <el-icon>
+            <ArrowLeft />
+          </el-icon>
           重做
         </el-button>
         <el-button type="success" @click="handleExportFormConfig">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           导出 JS 配置
         </el-button>
         <el-button type="success" @click="handleExportFormConfigTS">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           导出 TS 配置
         </el-button>
         <el-button type="warning" @click="handleExportAsyncValidator">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           导出校验规则
         </el-button>
         <el-button type="warning" @click="handleExportFormModule">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           导出表单模块
         </el-button>
         <el-button type="primary" @click="showCodeDialog = true">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           生成代码
         </el-button>
-        <CodeGenerator
-          :components="editorStore.components"
-          v-model:showCodeDialog="showCodeDialog"
-          :page-settings="editorStore.pageSchema.settings"
-        />
+        <CodeGenerator :components="editorStore.components" v-model:showCodeDialog="showCodeDialog"
+          :page-settings="editorStore.pageSchema.settings" />
       </div>
     </header>
-    
+
     <!-- 主内容区 -->
     <main class="main-content">
       <!-- 左侧物料面板 -->
       <MaterialPanel />
-      
+
       <!-- 中间画布区域 -->
       <div class="canvas-area">
         <div class="canvas-content">
-          <CanvasRenderer
-          :components="editorStore.components"
-          :page-settings="editorStore.pageSchema.settings"
-          :selected-id="editorStore.selectedId"
-          @select="editorStore.selectComponent"
-          @delete="editorStore.deleteComponent"
-          @copy="editorStore.copyComponent"
-          @update:component="handleUpdateComponent"
-        />
+          <CanvasRenderer :components="editorStore.components" :page-settings="editorStore.pageSchema.settings"
+            :selected-id="editorStore.selectedId" @select="editorStore.selectComponent"
+            @delete="editorStore.deleteComponent" @copy="editorStore.copyComponent"
+            @update:component="handleUpdateComponent" />
         </div>
       </div>
-      
+
       <!-- 右侧属性面板 -->
-      <PropertyPanel 
-        :component="editorStore.selectedComponent"
-        @update:component="handleUpdateComponent"
-      />
+      <PropertyPanel :component="editorStore.selectedComponent" @update:component="handleUpdateComponent" />
     </main>
   </div>
 
   <!-- 预览模态框 -->
-  <el-dialog
-    v-model="showPreview"
-    title="表单预览"
-    width="900px"
-  >
-    <PreviewRenderer 
-      :components="editorStore.components"
-      :page-settings="editorStore.pageSchema.settings"
-    />
+  <el-dialog v-model="showPreview" title="表单预览" width="900px">
+    <PreviewRenderer :components="editorStore.components" :page-settings="editorStore.pageSchema.settings" />
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="showPreview = false">关闭</el-button>
@@ -102,250 +104,322 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Download, Upload, ArrowLeft, ArrowRight, View, Document } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import MaterialPanel from './components/MaterialPanel.vue'
-import CanvasRenderer from './core/renderer/CanvasRenderer.vue'
-import PreviewRenderer from './core/renderer/PreviewRenderer.vue'
-import PropertyPanel from './components/PropertyPanel.vue'
-import CodeGenerator from './components/CodeGenerator.vue'
-import { generateFormConfigJS, generateFormConfigTS, generateAsyncValidatorRules, generateFormLogicModule } from './core/generator/FormConfigGenerator'
-import { useEditorStore } from './stores/editorStore'
-import type { ComponentSchema } from './core/schema/types'
+import { ref, onMounted, onUnmounted } from "vue";
+import {
+  Download,
+  Upload,
+  ArrowLeft,
+  ArrowRight,
+  View,
+  Document,
+} from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
+import MaterialPanel from "./components/MaterialPanel.vue";
+import CanvasRenderer from "./core/renderer/CanvasRenderer.vue";
+import PreviewRenderer from "./core/renderer/PreviewRenderer.vue";
+import PropertyPanel from "./components/PropertyPanel.vue";
+import CodeGenerator from "./components/CodeGenerator.vue";
+import {
+  generateFormConfigJS,
+  generateFormConfigTS,
+  generateAsyncValidatorRules,
+  generateFormLogicModule,
+} from "./core/generator/FormConfigGenerator";
+import { useEditorStore } from "./stores/editorStore";
+import type { ComponentSchema } from "./core/schema/types";
 
-const editorStore = useEditorStore()
+const editorStore = useEditorStore();
 // 初始化编辑器状态，保存初始状态到历史记录
-editorStore.initializeStore()
+editorStore.initializeStore();
 
 // 键盘快捷键处理
 const isInputFocused = (): boolean => {
-  const tag = (document.activeElement as HTMLElement)?.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  return (document.activeElement as HTMLElement)?.isContentEditable || false
-}
+  const tag = (document.activeElement as HTMLElement)?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return (document.activeElement as HTMLElement)?.isContentEditable || false;
+};
 
 const handleKeyDown = (event: KeyboardEvent): void => {
-  if (isInputFocused()) return
+  if (isInputFocused()) return;
 
-  if (event.ctrlKey && event.key === 'z') {
-    event.preventDefault()
-    editorStore.undo()
+  if (event.ctrlKey && event.key === "z") {
+    event.preventDefault();
+    editorStore.undo();
   }
-  if (event.ctrlKey && event.key === 'y') {
-    event.preventDefault()
-    editorStore.redo()
+  if (event.ctrlKey && event.key === "y") {
+    event.preventDefault();
+    editorStore.redo();
   }
-  if (event.key === 'Delete' || event.key === 'Backspace') {
+  if (event.key === "Delete" || event.key === "Backspace") {
     if (editorStore.selectedId) {
-      event.preventDefault()
-      editorStore.deleteComponent(editorStore.selectedId)
+      event.preventDefault();
+      editorStore.deleteComponent(editorStore.selectedId);
     }
   }
-  if (event.ctrlKey && event.key === 'c') {
+  if (event.ctrlKey && event.key === "c") {
     if (editorStore.selectedComponent) {
-      event.preventDefault()
-      editorStore.copyComponent(editorStore.selectedComponent)
+      event.preventDefault();
+      editorStore.copyComponent(editorStore.selectedComponent);
     }
   }
-  if (event.ctrlKey && event.key === 'v') {
-    event.preventDefault()
-    editorStore.pasteComponent()
+  if (event.ctrlKey && event.key === "v") {
+    event.preventDefault();
+    editorStore.pasteComponent();
   }
-}
+};
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeyDown)
-})
+  document.addEventListener("keydown", handleKeyDown);
+  console.log(
+    JSON.stringify({
+      // 页面Schema
+      pageSchema: {
+        version: "1.1.0",
+        info: {
+          name: "Untitled Page",
+          description: "",
+          created: new Date().toISOString(),
+          updated: new Date().toISOString(),
+        },
+        settings: {
+          title: "Page",
+          backgroundColor: "#ffffff",
+          width: "1200px",
+          height: "800px",
+          meta: {},
+          // 表单级配置
+          formTitle: "表单",
+          layout: "grid",
+          columns: 2,
+        },
+        components: [],
+      },
+      // 选中的组件ID
+      selectedId: null,
+      // 剪贴板
+      clipboard: [],
+      // 历史记录（双栈模式）
+      history: {
+        past: [],
+        future: [],
+        maxSize: 50,
+      },
+    }),
+  );
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyDown)
-})
+  document.removeEventListener("keydown", handleKeyDown);
+});
 
 // 预览状态
-const showPreview = ref(false)
+const showPreview = ref(false);
 // 代码生成弹窗状态
-const showCodeDialog = ref(false)
+const showCodeDialog = ref(false);
 
 // 导出Schema
 const handleExport = (): void => {
-  const schema = editorStore.exportSchema()
-  const dataStr = JSON.stringify(schema, null, 2)
-  const dataBlob = new Blob([dataStr], { type: 'application/json' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'page-schema.json'
-  link.click()
-  URL.revokeObjectURL(url)
-}
+  const schema = editorStore.exportSchema();
+  const dataStr = JSON.stringify(schema, null, 2);
+  const dataBlob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "page-schema.json";
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
 // 导入Schema
 const handleImport = (): void => {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.json'
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
   input.onchange = (e: Event) => {
-    const target = e.target as HTMLInputElement
-    const file = target.files?.[0]
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (event: ProgressEvent<FileReader>) => {
         try {
-          const schema = JSON.parse(event.target?.result as string)
-          editorStore.importSchema(schema)
+          const schema = JSON.parse(event.target?.result as string);
+          editorStore.importSchema(schema);
         } catch (error) {
-          console.error('Failed to parse schema:', error)
+          console.error("Failed to parse schema:", error);
         }
-      }
-      reader.readAsText(file)
+      };
+      reader.readAsText(file);
     }
-  }
-  input.click()
-}
+  };
+  input.click();
+};
 
 // 处理组件更新
 const handleUpdateComponent = (updatedComponent: ComponentSchema): void => {
-  const { id, ...updates } = updatedComponent
-  editorStore.updateComponent(id, updates)
-}
+  const { id, ...updates } = updatedComponent;
+  editorStore.updateComponent(id, updates);
+};
 
 // 表单组件类型列表
 const formComponentTypes: string[] = [
-  'input', 'textarea', 'number', 'radio', 'checkbox', 'select',
-  'date', 'time', 'switch', 'slider', 'rate', 'upload'
-]
+  "input",
+  "textarea",
+  "number",
+  "radio",
+  "checkbox",
+  "select",
+  "date",
+  "time",
+  "switch",
+  "slider",
+  "rate",
+  "upload",
+];
 
 // 获取数据类型
 const getDataType = (componentType: string): string => {
   const typeMap: Record<string, string> = {
-    'input': 'string',
-    'textarea': 'string',
-    'number': 'number',
-    'radio': 'string',
-    'checkbox': 'array',
-    'select': 'string',
-    'date': 'date',
-    'time': 'time',
-    'switch': 'boolean',
-    'slider': 'number',
-    'rate': 'number',
-    'upload': 'file'
-  }
-  return typeMap[componentType] || 'string'
-}
+    input: "string",
+    textarea: "string",
+    number: "number",
+    radio: "string",
+    checkbox: "array",
+    select: "string",
+    date: "date",
+    time: "time",
+    switch: "boolean",
+    slider: "number",
+    rate: "number",
+    upload: "file",
+  };
+  return typeMap[componentType] || "string";
+};
 
 // 导出表单配置 JS
 const handleExportFormConfig = (): void => {
-  const components = editorStore.components
+  const components = editorStore.components;
   if (components.length === 0) {
-    ElMessage.warning('请先添加表单组件')
-    return
+    ElMessage.warning("请先添加表单组件");
+    return;
   }
-  const jsCode = generateFormConfigJS(components, editorStore.pageSchema.settings)
-  const dataBlob = new Blob([jsCode], { type: 'application/javascript' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'form-config.js'
-  link.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('JS 配置已导出')
-}
+  const jsCode = generateFormConfigJS(
+    components,
+    editorStore.pageSchema.settings,
+  );
+  const dataBlob = new Blob([jsCode], { type: "application/javascript" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "form-config.js";
+  link.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success("JS 配置已导出");
+};
 
 // 导出表单配置 TS
 const handleExportFormConfigTS = (): void => {
-  const components = editorStore.components
+  const components = editorStore.components;
   if (components.length === 0) {
-    ElMessage.warning('请先添加表单组件')
-    return
+    ElMessage.warning("请先添加表单组件");
+    return;
   }
-  const tsCode = generateFormConfigTS(components, editorStore.pageSchema.settings)
-  const dataBlob = new Blob([tsCode], { type: 'application/typescript' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'form-config.ts'
-  link.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('TS 配置已导出')
-}
+  const tsCode = generateFormConfigTS(
+    components,
+    editorStore.pageSchema.settings,
+  );
+  const dataBlob = new Blob([tsCode], { type: "application/typescript" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "form-config.ts";
+  link.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success("TS 配置已导出");
+};
 
 // 导出 async-validator 校验规则
 const handleExportAsyncValidator = (): void => {
-  const components = editorStore.components
+  const components = editorStore.components;
   if (components.length === 0) {
-    ElMessage.warning('请先添加表单组件')
-    return
+    ElMessage.warning("请先添加表单组件");
+    return;
   }
-  const tsCode = generateAsyncValidatorRules(components, editorStore.pageSchema.settings)
-  const dataBlob = new Blob([tsCode], { type: 'application/typescript' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'form-rules.ts'
-  link.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('async-validator 校验规则已导出')
-}
+  const tsCode = generateAsyncValidatorRules(
+    components,
+    editorStore.pageSchema.settings,
+  );
+  const dataBlob = new Blob([tsCode], { type: "application/typescript" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "form-rules.ts";
+  link.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success("async-validator 校验规则已导出");
+};
 
 // 导出完整表单逻辑模块
 const handleExportFormModule = (): void => {
-  const components = editorStore.components
+  const components = editorStore.components;
   if (components.length === 0) {
-    ElMessage.warning('请先添加表单组件')
-    return
+    ElMessage.warning("请先添加表单组件");
+    return;
   }
-  const settings = editorStore.pageSchema.settings
-  const tsCode = generateFormLogicModule(components, settings)
+  const settings = editorStore.pageSchema.settings;
+  const tsCode = generateFormLogicModule(components, settings);
   // 推导文件名：formTitle 转驼峰
-  const title: string = settings.formTitle || 'form'
-  const moduleName = 'use' + title
-    .replace(/[\s_-]+(.)/g, (_m: string, c: string) => c.toUpperCase())
-    .replace(/[\s_-]+/g, '')
-    .replace(/^./, (c: string) => c.toUpperCase()) + 'Form'
-  const dataBlob = new Blob([tsCode], { type: 'application/typescript' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = moduleName + '.ts'
-  link.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('表单模块已导出')
-}
+  const title: string = settings.formTitle || "form";
+  const moduleName =
+    "use" +
+    title
+      .replace(/[\s_-]+(.)/g, (_m: string, c: string) => c.toUpperCase())
+      .replace(/[\s_-]+/g, "")
+      .replace(/^./, (c: string) => c.toUpperCase()) +
+    "Form";
+  const dataBlob = new Blob([tsCode], { type: "application/typescript" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = moduleName + ".ts";
+  link.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success("表单模块已导出");
+};
 
 // 导出数据结构
 const handleExportDataStructure = (): void => {
-  const components = editorStore.components
-  const dataStructure: Record<string, any> = {}
+  const components = editorStore.components;
+  const dataStructure: Record<string, any> = {};
 
   // 遍历组件，生成数据结构
   components.forEach((component: ComponentSchema) => {
     if (formComponentTypes.includes(component.type)) {
-      const fieldName = component.props.fieldName || component.label || component.type
+      const fieldName =
+        component.props.fieldName || component.label || component.type;
       dataStructure[fieldName] = {
         type: getDataType(component.type),
         required: component.validation?.required || false,
         defaultValue: component.props.defaultValue,
-        validation: component.validation
-      }
+        validation: component.validation,
+      };
     }
-  })
+  });
 
-  const dataStr = JSON.stringify(dataStructure, null, 2)
-  const dataBlob = new Blob([dataStr], { type: 'application/json' })
-  const url = URL.createObjectURL(dataBlob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'form-data-structure.json'
-  link.click()
-  URL.revokeObjectURL(url)
-}
+  const dataStr = JSON.stringify(dataStructure, null, 2);
+  const dataBlob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "form-data-structure.json";
+  link.click();
+  URL.revokeObjectURL(url);
+};
 </script>
 
 <style>
 /* 全局样式，消除全屏滚动条 */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -441,7 +515,7 @@ html, body {
   border-radius: 8px;
   padding: 16px;
   overflow-x: auto;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 14px;
   line-height: 1.5;
   color: #333;

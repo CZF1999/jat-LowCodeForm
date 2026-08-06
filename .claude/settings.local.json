@@ -8,7 +8,9 @@
       "Bash(git add *)",
       "Bash(git commit -m 'docs: 更新会话摘要和代码阅读指南，清理 editorStore 死代码 *)",
       "Bash(npx vue-tsc *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git commit -m 'refactor: 撤销/重做重构为双栈模式\\(past/future\\) *)",
+      "Bash(git push *)"
     ]
   }
 }
