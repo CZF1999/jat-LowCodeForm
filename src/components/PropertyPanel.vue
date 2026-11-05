@@ -24,14 +24,14 @@
               <el-option label="垂直布局 (vertical)" value="vertical"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item label="列数" v-if="pageSettings.layout === 'grid'">
+          <!-- <el-form-item label="列数" v-if="pageSettings.layout === 'grid'">
             <el-input-number
               v-model="pageSettings.columns"
               @change="updatePageSettings"
               :min="1"
               :max="6"
             />
-          </el-form-item>
+          </el-form-item> -->
         </el-form>
       </div>
       <p class="no-selection-hint">或选择一个组件进行字段编辑</p>
