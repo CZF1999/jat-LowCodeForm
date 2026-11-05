@@ -34,7 +34,8 @@ export function migrateSchema(schema: any): any {
   let currentVersion = schema.version
   
   for (const version of versions) {
-    if (compareVersions(currentVersion, version) < 0) {
+    // 当前版本 <= 迁移键时应用（含恰好停在该版本的情况）
+    if (compareVersions(currentVersion, version) <= 0) {
       schema = versionMigrations[version](schema)
       currentVersion = version
     }
