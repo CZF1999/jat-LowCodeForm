@@ -29,6 +29,7 @@ const annotations = shallowRef<Annotation[]>([])
 const selectedId = ref<string | null>(null)
 const tool = ref<ReviewTool>('select')
 const stampSymbol = ref<StampSymbol>('correct')
+const highlightColor = ref('#facc15')
 const surface = ref<SurfaceMode>('html')
 const scale = ref(1)
 const homeworkId = ref(DEMO_HOMEWORK_ID)
@@ -95,6 +96,12 @@ export function useAnnotationStore() {
     cancelCalloutDraft()
     stampSymbol.value = next
     tool.value = 'stamp'
+  }
+
+  function setHighlightColor(color: string) {
+    cancelCalloutDraft()
+    highlightColor.value = color
+    tool.value = 'highlight'
   }
 
   function beginCallout(tip: CalloutDraftTip) {
@@ -273,7 +280,7 @@ export function useAnnotationStore() {
       kind: 'highlight',
       surface: 'html',
       createdAt: Date.now(),
-      color: partial.color ?? '#facc15',
+      color: partial.color ?? highlightColor.value,
       comment: partial.comment ?? '',
       htmlAnchor: partial.htmlAnchor,
     }
@@ -286,6 +293,12 @@ export function useAnnotationStore() {
   function updateComment(id: string, comment: string) {
     annotations.value = annotations.value.map((item) =>
       item.id === id ? { ...item, comment } : item,
+    )
+  }
+
+  function updateColor(id: string, color: string) {
+    annotations.value = annotations.value.map((item) =>
+      item.id === id ? { ...item, color } : item,
     )
   }
 
@@ -402,6 +415,7 @@ export function useAnnotationStore() {
     selected,
     tool,
     stampSymbol,
+    highlightColor,
     surface,
     scale,
     homeworkId,
@@ -421,6 +435,7 @@ export function useAnnotationStore() {
     setSurface,
     setTool,
     setStampSymbol,
+    setHighlightColor,
     beginCallout,
     updateCalloutPreview,
     cancelCalloutDraft,
@@ -435,6 +450,7 @@ export function useAnnotationStore() {
     addUnderline,
     addHighlight,
     updateComment,
+    updateColor,
     updateTextbox,
     updateCalloutText,
     remove,

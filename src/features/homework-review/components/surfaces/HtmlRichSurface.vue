@@ -268,7 +268,7 @@ function onPointerMove(event: PointerEvent) {
   updatePreview(
     draftStart.value,
     offset,
-    store.tool.value === 'highlight' ? '#facc15' : '#ef4444',
+    store.tool.value === 'highlight' ? store.highlightColor.value : '#ef4444',
   )
 }
 
@@ -289,7 +289,11 @@ function finishRangeMark() {
   const anchor = rangeToOffsets(root, range)
   if (!anchor) return
   if (store.tool.value === 'highlight') {
-    store.addHighlight({ htmlAnchor: anchor, comment: '', color: '#facc15' })
+    store.addHighlight({
+      htmlAnchor: anchor,
+      comment: '',
+      color: store.highlightColor.value,
+    })
   } else if (store.tool.value === 'underline') {
     store.addUnderline({ htmlAnchor: anchor, comment: '', color: '#ef4444' })
   }
@@ -489,6 +493,32 @@ watch(
   padding: 28px 16px 48px;
   color: #1f2937;
   line-height: 1.7;
+}
+
+.content :deep(.page) {
+  /* ~A4 可视高度，便于滚动时感知「5 页」 */
+  min-height: 980px;
+  padding: 8px 0 32px;
+  box-sizing: border-box;
+  border-bottom: 1px dashed #cbd5e1;
+}
+
+.content :deep(.page:last-child) {
+  border-bottom: none;
+  min-height: 880px;
+}
+
+.content :deep(.page-label) {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+}
+
+.content :deep(.end-mark) {
+  margin-top: 28px;
+  text-align: center;
+  color: #64748b;
 }
 
 .content :deep(h2) {

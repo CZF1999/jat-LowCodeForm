@@ -6,6 +6,7 @@ import HtmlRichSurface from './surfaces/HtmlRichSurface.vue'
 import CommentPopover from './layers/CommentPopover.vue'
 import { useAnnotationStore } from '../useAnnotationStore'
 import {
+  HIGHLIGHT_PRESET_COLORS,
   STAMP_SYMBOL_LABEL,
   type Annotation,
   type ReviewTool,
@@ -62,6 +63,14 @@ function onTool(next: ReviewTool) {
 
 function onStamp(symbol: StampSymbol) {
   store.setStampSymbol(symbol)
+}
+
+function onHighlightColor(color: string) {
+  if (store.surface.value !== 'html') {
+    ElMessage.info('高亮 / 下划线仅电子答卷（HTML）可用')
+    return
+  }
+  store.setHighlightColor(color)
 }
 
 function isToolDisabled(next: ReviewTool): boolean {
@@ -160,6 +169,21 @@ onMounted(() => {
         >
           高亮
         </button>
+        <span class="swatch-group" title="高亮颜色">
+          <button
+            v-for="color in HIGHLIGHT_PRESET_COLORS"
+            :key="color"
+            type="button"
+            class="swatch"
+            :class="{
+              active: store.tool.value === 'highlight' && store.highlightColor.value === color,
+            }"
+            :style="{ background: color }"
+            :disabled="isToolDisabled('highlight')"
+            :aria-label="`高亮色 ${color}`"
+            @click="onHighlightColor(color)"
+          />
+        </span>
         <button
           type="button"
           :class="{ active: store.tool.value === 'underline' }"
@@ -214,6 +238,7 @@ onMounted(() => {
             if (store.selected.value?.kind === 'callout') store.updateCalloutText(store.selectedId.value, value)
             else store.updateTextbox(store.selectedId.value, value)
           }"
+          @update:color="(value) => store.selectedId.value && store.updateColor(store.selectedId.value, value)"
           @remove="store.selectedId.value && store.remove(store.selectedId.value)"
           @close="store.select(null)"
         />
@@ -271,6 +296,27 @@ button {
 .stamp-btn {
   min-width: 34px;
   font-weight: 700;
+}
+
+.swatch-group {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.swatch.active {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
 }
 
 button.active {

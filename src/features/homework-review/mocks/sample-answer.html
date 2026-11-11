@@ -1,22 +1,120 @@
 <article class="sample-answer">
-  <h2>在线作业答卷（HTML）</h2>
-  <p>姓名：张三　班级：高一（3）班　学号：20260018</p>
-  <h3>一、简答题</h3>
-  <p>
-    Vue3 的响应式系统基于 Proxy。当数据量很大且多为只读批注点时，应避免对每个对象做深层代理，
-    优先使用 shallowRef，通过替换数组引用触发更新，从而降低依赖收集与 diff 成本。
-  </p>
-  <p>
-    对于“在线作业批阅”场景，建议把静态绘制放到 Canvas，把少量交互控件放在 DOM 层；
-    批注命中检测与视口查询可以放到 Web Worker，避免阻塞主线程滚动与缩放。
-  </p>
-  <h3>二、设计题</h3>
-  <p>
-    请设计一个可承载 2000+ 批注点的批阅组件。需要考虑：组件拆分、虚拟 DOM 压力、
-    坐标归一化、PDF/图片页与富文本锚点的统一数据模型。
-  </p>
-  <p>
-    参考答案要点：内容层 / 绘制层 / 交互层分离；侧栏列表窗口化；选中气泡单例挂载；
-    导出 JSON 便于持久化与回放。
-  </p>
+  <section class="page" data-page="1">
+    <p class="page-label">第 1 / 5 页</p>
+    <h2>在线作业答卷（HTML）</h2>
+    <p>姓名：张三　班级：高一（3）班　学号：20260018</p>
+    <h3>一、简答题</h3>
+    <p>
+      Vue3 的响应式系统基于 Proxy。当数据量很大且多为只读批注点时，应避免对每个对象做深层代理，
+      优先使用 shallowRef，通过替换数组引用触发更新，从而降低依赖收集与 diff 成本。
+    </p>
+    <p>
+      对于“在线作业批阅”场景，建议把静态绘制放到 Canvas，把少量交互控件放在 DOM 层；
+      批注命中检测与视口查询可以放到 Web Worker，避免阻塞主线程滚动与缩放。
+    </p>
+    <p>
+      归一化坐标（0~1）适合图片与 PDF：缩放舞台后批注不会漂。富文本划词则应使用文本偏移锚点
+      HtmlAnchor，展示时再通过 Range 与 getClientRects 重算矩形，才能抵抗滚动与换行。
+    </p>
+    <p>
+      判别联合类型用 kind 区分 stamp、highlight、stroke、callout 等批注，工具栏与持久化都围绕
+      同一套 Annotation 协议，便于以后对接后端而不改渲染层。
+    </p>
+  </section>
+
+  <section class="page" data-page="2">
+    <p class="page-label">第 2 / 5 页</p>
+    <h3>二、设计题</h3>
+    <p>
+      请设计一个可承载 2000+ 批注点的批阅组件。需要考虑：组件拆分、虚拟 DOM 压力、
+      坐标归一化、PDF/图片页与富文本锚点的统一数据模型。
+    </p>
+    <p>
+      参考答案要点：内容层 / 绘制层 / 交互层分离；侧栏列表窗口化；选中气泡单例挂载；
+      导出 JSON 便于持久化与回放。
+    </p>
+    <p>
+      空间索引可用网格桶：把归一化点落入 cellSize 格子，视口查询只扫描相交格子，并限制返回条数。
+      索引重建与查询放到 Worker，主线程只根据 visibleIds 挂少量 DOM。
+    </p>
+    <p>
+      引注（callout）用两步手势：先点问题 tip，再点页边落下长文本框，中间虚线预览；Esc 取消半截态。
+      这解决了“长评不能挡原文、又要保住指向”的矛盾。
+    </p>
+    <p>
+      客观题优先图章与短错因；主观题优先高亮/下划线加侧栏意见；图示题用画笔圈画。工具始终常显，
+      由老师自选，不按题型锁死工具栏。
+    </p>
+  </section>
+
+  <section class="page" data-page="3">
+    <p class="page-label">第 3 / 5 页</p>
+    <h3>三、论述题：分层渲染</h3>
+    <p>
+      为什么不全用 Canvas？笔画密集、不需逐字编辑，适合 Canvas；图章、短文本、长文本框需要点击与编辑，
+      适合 DOM；引线用 SVG 便于画箭头。按交互形态拆层，而不是为了炫技。
+    </p>
+    <p>
+      HTML 高亮与下划线共用拖选状态机：caretOffsetFromPoint 把指针变成字符偏移，松开时 rangeToOffsets
+      写入 htmlAnchor，滚动后 layoutRangeMarks 重算色块或底线。高亮支持预设色板，颜色存在 annotation.color。
+    </p>
+    <p>
+      画笔在 HTML 与图片/PDF 上采集归一化点列，抬起写入 stroke。历史上 HTML 的 pen 曾映射成下划线，
+      现已拆分，避免老师误以为拖文字是在画画。
+    </p>
+    <p>
+      持久化用 AnnotationDraft：homeworkId、contentHash、annotations、updatedAt。Demo 落 localStorage，
+      接口做成 async 便于将来换成 HTTP；contentHash 预留答卷变更校验。
+    </p>
+    <p>
+      侧栏 CommentPopover 按 kind 换文案与输入：创建后 focusCommentToken 触发聚焦，鼓励“有记号就有反馈”。
+    </p>
+  </section>
+
+  <section class="page" data-page="4">
+    <p class="page-label">第 4 / 5 页</p>
+    <h3>四、应用题：性能与体验</h3>
+    <p>
+      列表 shallowRef 整体替换，避免对上千条批注做深层响应式。侧栏最多展示 80 条，与空间索引 limit 思路一致，
+      防止列表本身拖垮滚动。
+    </p>
+    <p>
+      页边留白（padding / gutter）让引注长框可以落到边界区域而不被裁切。Image/PDF 舞台加左右 gutter，
+      中间放答卷画面，批注坐标仍相对整页舞台归一化。
+    </p>
+    <p>
+      PDF 使用 pdfjs 渲染单页到 canvas；图片用 SVG 样例。非 HTML 载体禁用划词工具并提示，因为没有 OCR
+      无法稳定绑定字符几何——Demo 诚实降级比假装支持更重要。
+    </p>
+    <p>
+      若上生产，优先补：批注拖拽改位、撤销重做、多页虚拟列表、后端同步与冲突合并、移动端手势。
+      不要一上来就上大模型判分，先把交互与数据契约做扎实。
+    </p>
+    <p>
+      面试可强调：复杂批注不是堆按钮，而是先定数据契约和坐标策略，再按载体与交互拆渲染；
+      性能上优先保证书写跟手，把可延后的计算移出主线程。
+    </p>
+  </section>
+
+  <section class="page" data-page="5">
+    <p class="page-label">第 5 / 5 页</p>
+    <h3>五、综合小结</h3>
+    <p>
+      请用一段话总结本作业模块的技术选型，并说明客观题与主观题批注工具为何不同。
+    </p>
+    <p>
+      参考作答：本模块以 Vue3 + TypeScript 判别联合描述批注协议；HtmlRichSurface 与 ImagePdfSurface
+      作为载体适配器采集交互；Store 统一写入；Canvas/DOM/SVG 分层渲染；HTML 划词用文本锚点，
+      图片 PDF 用归一化坐标；Worker 网格索引服务大量 pin 压测。
+    </p>
+    <p>
+      客观题对错分明，图章与短文本吞吐高；主观题需要定位句子并写改进意见，故用高亮/下划线/引注；
+      几何与受力分析等图示则用画笔圈画，比纯文字更直观。
+    </p>
+    <p>
+      验收清单：图章可落、短文本可写、引注两步可成、高亮可选色、下划线与画笔分离、保存加载颜色与锚点不丢、
+      非 HTML 划词不可用。完成后可导出 JSON 作为对接后端的契约样例。
+    </p>
+    <p class="end-mark">—— 答卷结束 ——</p>
+  </section>
 </article>

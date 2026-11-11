@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
+  HIGHLIGHT_PRESET_COLORS,
   STAMP_SYMBOL_LABEL,
   TEXTBOX_PRESETS,
   type Annotation,
@@ -15,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:comment': [value: string]
   'update:text': [value: string]
+  'update:color': [value: string]
   remove: []
   close: []
 }>()
@@ -71,11 +73,21 @@ const showPresets = computed(
   () => props.annotation?.kind === 'stamp' || props.annotation?.kind === 'textbox',
 )
 
+const showHighlightColors = computed(() => props.annotation?.kind === 'highlight')
+
+const currentHighlightColor = computed(() =>
+  props.annotation?.kind === 'highlight' ? props.annotation.color || '#facc15' : '',
+)
+
 function applyPreset(phrase: string) {
   if (props.annotation?.kind === 'textbox') {
     emit('update:text', phrase.slice(0, 40))
   }
   emit('update:comment', phrase)
+}
+
+function applyColor(color: string) {
+  emit('update:color', color)
 }
 
 watch(
@@ -96,6 +108,22 @@ watch(
     </header>
 
     <p v-if="quote" class="quote">「{{ quote }}」</p>
+
+    <div v-if="showHighlightColors" class="color-field">
+      <span>高亮颜色</span>
+      <div class="swatch-group">
+        <button
+          v-for="color in HIGHLIGHT_PRESET_COLORS"
+          :key="color"
+          type="button"
+          class="swatch"
+          :class="{ active: currentHighlightColor === color }"
+          :style="{ background: color }"
+          :aria-label="`高亮色 ${color}`"
+          @click="applyColor(color)"
+        />
+      </div>
+    </div>
 
     <label v-if="annotation.kind === 'textbox'" class="field">
       <span>短句（最多 40 字）</span>
@@ -174,6 +202,38 @@ watch(
   color: #475569;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.color-field {
+  margin-top: 10px;
+}
+
+.color-field > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.swatch-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.swatch.active {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
 }
 
 .field {

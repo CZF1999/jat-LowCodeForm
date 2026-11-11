@@ -26,6 +26,14 @@ export const STAMP_SYMBOL_LABEL: Record<StampSymbol, string> = {
 
 export const TEXTBOX_PRESETS = ['单位未换算', '公式记错', '审题不清', '计算错误'] as const
 
+export const HIGHLIGHT_PRESET_COLORS = [
+  '#facc15', // 黄
+  '#86efac', // 绿
+  '#93c5fd', // 蓝
+  '#f9a8d4', // 粉
+  '#fdba74', // 橙
+] as const
+
 export interface HtmlAnchor {
   start: number
   end: number
