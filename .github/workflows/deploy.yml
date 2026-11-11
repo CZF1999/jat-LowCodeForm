@@ -43,9 +43,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      # SPA 深链（如 /design-to-code）在 GitHub Pages 上走 404.html 回退
+      - name: SPA fallback for GitHub Pages
+        run: cp dist/index.html dist/404.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

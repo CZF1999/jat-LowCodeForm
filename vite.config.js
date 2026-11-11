@@ -6,6 +6,12 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   base: '/jat-LowCodeForm/',
   plugins: [vue()],
+  server: {
+    // Windows 上默认可能只绑 [::1]，Chrome 走 127.0.0.1 会打不开
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+  },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{js,ts}'],
