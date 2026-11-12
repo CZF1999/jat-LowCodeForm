@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 图章
 import { computed, onUnmounted, ref } from 'vue'
 import {
   STAMP_SYMBOL_LABEL,
@@ -14,6 +15,8 @@ const props = defineProps<{
   width: number
   height: number
   tool: ReviewTool
+  /** Expand short text for PDF export (no ellipsis). */
+  exportMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -147,8 +150,8 @@ function onPointerUp(event: PointerEvent) {
       type="button"
       class="stamp"
       :class="{
-        'is-selected': item.id === selectedId,
-        'is-draggable': canDrag,
+        'is-selected': item.id === selectedId && !exportMode,
+        'is-draggable': canDrag && !exportMode,
         'is-grabbing': grabbingId === item.id,
       }"
       :style="stampStyle(item)"
@@ -168,9 +171,10 @@ function onPointerUp(event: PointerEvent) {
       type="button"
       class="textbox"
       :class="{
-        'is-selected': item.id === selectedId,
-        'is-draggable': canDrag,
+        'is-selected': item.id === selectedId && !exportMode,
+        'is-draggable': canDrag && !exportMode,
         'is-grabbing': grabbingId === item.id,
+        'is-export': exportMode,
       }"
       :style="textboxStyle(item)"
       :title="item.text || item.comment || '短文本'"
@@ -252,5 +256,13 @@ function onPointerUp(event: PointerEvent) {
 .textbox.is-selected {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+
+.textbox.is-export {
+  max-width: none;
+  white-space: pre-wrap;
+  overflow: visible;
+  text-overflow: clip;
+  box-shadow: none;
 }
 </style>

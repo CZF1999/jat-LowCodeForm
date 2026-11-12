@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import ImagePdfSurface from './surfaces/ImagePdfSurface.vue'
 import HtmlRichSurface from './surfaces/HtmlRichSurface.vue'
 import VuePaperSurface from './surfaces/VuePaperSurface.vue'
 import CommentPopover from './layers/CommentPopover.vue'
+import {
+  exportAnnotatedPdf,
+  type AnnotatedSurfaceExportApi,
+} from '../exportAnnotatedPdf'
 import { useAnswerContent } from '../useAnswerContent'
 import { useAnnotationStore } from '../useAnnotationStore'
 import {
@@ -18,6 +22,10 @@ import {
 
 const store = useAnnotationStore()
 const answerContent = useAnswerContent()
+const vueSurfaceRef = ref<AnnotatedSurfaceExportApi | null>(null)
+const htmlSurfaceRef = ref<AnnotatedSurfaceExportApi | null>(null)
+const imagePdfSurfaceRef = ref<AnnotatedSurfaceExportApi | null>(null)
+const exportingPdf = ref(false)
 
 const list = computed(() => store.surfaceAnnotations.value.slice().reverse())
 
@@ -99,6 +107,39 @@ function downloadJson() {
   a.download = `homework-annotations-${store.surface.value}.json`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+function activeSurfaceApi(): AnnotatedSurfaceExportApi | null {
+  if (store.surface.value === 'html') {
+    return answerContent.paperMode.value === 'vue'
+      ? vueSurfaceRef.value
+      : htmlSurfaceRef.value
+  }
+  return imagePdfSurfaceRef.value
+}
+
+async function exportPdf() {
+  const api = activeSurfaceApi()
+  if (!api?.getExportRoot()) {
+    ElMessage.info('答卷尚未就绪，请稍后再试')
+    return
+  }
+  if (exportingPdf.value) return
+  exportingPdf.value = true
+  const loading = ElMessage.info({ message: '正在导出 PDF…', duration: 0 })
+  try {
+    await exportAnnotatedPdf({
+      surface: api,
+      surfaceMode: store.surface.value,
+    })
+    ElMessage.success('PDF 已导出')
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('导出 PDF 失败')
+  } finally {
+    loading.close()
+    exportingPdf.value = false
+  }
 }
 
 async function saveDraft() {
@@ -220,6 +261,14 @@ function onTogglePaperMode() {
         <button type="button" @click="reloadDraft">重新加载</button>
         <button type="button" @click="exportJson">复制 JSON</button>
         <button type="button" @click="downloadJson">导出 JSON</button>
+        <button
+          type="button"
+          class="primary"
+          :disabled="exportingPdf"
+          @click="exportPdf"
+        >
+          {{ exportingPdf ? '导出中…' : '导出 PDF' }}
+        </button>
       </div>
       <p v-if="store.lastSavedAt.value" class="saved">
         上次保存：{{ new Date(store.lastSavedAt.value).toLocaleString() }}
@@ -230,11 +279,13 @@ function onTogglePaperMode() {
       <main class="main">
         <VuePaperSurface
           v-if="store.surface.value === 'html' && answerContent.paperMode.value === 'vue'"
+          ref="vueSurfaceRef"
         />
         <HtmlRichSurface
           v-else-if="store.surface.value === 'html'"
+          ref="htmlSurfaceRef"
         />
-        <ImagePdfSurface v-else />
+        <ImagePdfSurface v-else ref="imagePdfSurfaceRef" />
       </main>
 
       <aside class="side">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 笔画
 import { onMounted, ref, watch } from 'vue'
 import type { Annotation, PinAnnotation, StrokeAnnotation } from '../../types'
 

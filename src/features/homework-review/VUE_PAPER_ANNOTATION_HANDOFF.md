@@ -11,7 +11,10 @@
 1. [30 秒开场](#1-30-秒开场)
 2. [架构总览](#2-架构总览)
 3. [组件化试卷壳](#3-组件化试卷壳)
+   - [3.4 VuePaperSurface 如何挂上批注](#34-vuepapersurface-如何挂上批注)
+   - [3.5 layers 组件职责与交互图解](#35-layers-组件职责与交互图解)
 4. [批注能力逐项](#4-批注能力逐项)
+   - [4.5 高亮 / 下划线](#45-高亮--下划线)
 5. [坐标、固定纸宽与命中](#5-坐标固定纸宽与命中)
 6. [与 HTML 试卷对比](#6-与-html-试卷对比)
 7. [面试追问速查](#7-面试追问速查)
@@ -136,21 +139,165 @@ flowchart TB
 
 文件：[`components/surfaces/VuePaperSurface.vue`](./components/surfaces/VuePaperSurface.vue)
 
+`VuePaperSurface` 是 Vue 试卷批注的装配壳：
+
+1. 用 [`useAnswerContent`](./useAnswerContent.ts) 拿试卷 JSON，在 `contentRef` 里渲染 [`PaperMarkingView`](./components/PaperMarkingView.vue)。
+2. 用 [`useHtmlAnnotationStage`](./useHtmlAnnotationStage.ts) 量测 `contentBoxRef`、处理 stage 指针事件、把 Store 标注 layout 成叠层 props。
+3. 在与答卷同尺寸的 `overlay-root` 上按层挂渲染组件。
+
+**DOM 树（文字版）**
+
 ```
-html-surface（滚动）
-  └ stage（固定总宽 = 内容宽 + 左右 gutter）
-       └ content-shell（contentBoxRef，固定 980px）
+html-surface（滚动，rootRef）
+  └ stage（stageRef，接落点/划词/画笔）
+       └ content-shell（contentBoxRef = overlay 尺寸基准，固定 980px）
             ├ content（contentRef）→ PaperMarkingView
-            └ overlay-root（与 shell 同宽高）
-                 ├ mark-layer（高亮/下划线矩形）
+            └ overlay-root（绝对定位，同宽高，默认 pointer-events:none）
+                 ├ mark-layer（高亮/下划线矩形，Surface 内联）
                  ├ AnnotationCanvas
                  ├ AnnotationPins
                  ├ AnnotationMarkers
                  └ AnnotationCallouts
 ```
 
+**叠层装配图**
+
+```mermaid
+flowchart TB
+  Surface[VuePaperSurface]
+  Stage[useHtmlAnnotationStage]
+  Store[useAnnotationStore]
+  Paper[PaperMarkingView]
+  MarkLayer[mark-layer_inline]
+  Canvas[AnnotationCanvas]
+  Pins[AnnotationPins]
+  Markers[AnnotationMarkers]
+  Callouts[AnnotationCallouts]
+  Popover[CommentPopover_in_ReviewShell]
+
+  Surface --> Paper
+  Surface --> Stage
+  Stage --> Store
+  Stage --> MarkLayer
+  Stage --> Canvas
+  Stage --> Pins
+  Stage --> Markers
+  Stage --> Callouts
+  Store --> Popover
+```
+
+**z 序（自下而上，均在 overlay-root 内）**
+
+```mermaid
+flowchart TB
+  L1[1_mark-layer_划词矩形]
+  L2[2_AnnotationCanvas_画笔]
+  L3[3_AnnotationPins_批注钉]
+  L4[4_AnnotationMarkers_图章短文本]
+  L5[5_AnnotationCallouts_引注]
+  L1 --> L2 --> L3 --> L4 --> L5
+```
+
 舞台：`useHtmlAnnotationStage([() => paper.sjid, () => paperMode])`——换卷或切模式后 `nextTick` 再 layout。  
 纸宽常量：[`paperLayout.ts`](./paperLayout.ts) 中 `PAPER_CONTENT_WIDTH_WIDE = 980`（Vue 宽版，含题号栏排版）。
+
+坐标约定：点类标注存相对 `content-shell` 的归一化坐标 `0~1`；划词存 `htmlAnchor` 文本偏移，layout 时再转成像素矩形。
+
+`overlay-root` 默认 `pointer-events: none`，通过 `:deep` 给 `.stamp / .textbox / .callout-box / .tip-handle / .pin` 开 `pointer-events: auto`——可点选拖拽，又不挡划词在 content 上采点。
+
+### 3.5 layers 组件职责与交互图解
+
+目录：[`components/layers/`](./components/layers/)
+
+#### 组件一览
+
+| 组件 | 职责 | Props 要点 | Emits / 交互 |
+|------|------|------------|--------------|
+| [`AnnotationCanvas.vue`](./components/layers/AnnotationCanvas.vue) | Canvas 2D 画 `stroke` 折线；代码可画 pin，但 Vue 路径只传 strokes | `width/height`、`annotations`、`selectedId` | 无；`pointer-events: none`，落笔由 stage 完成 |
+| [`AnnotationPins.vue`](./components/layers/AnnotationPins.vue) | 可点蓝色圆钉；按 `visibleIds`（+ 当前选中）裁剪 | `pins`、`visibleIds`、`selectedId`、`width/height` | `select(id)` → `store.select` |
+| [`AnnotationMarkers.vue`](./components/layers/AnnotationMarkers.vue) | 图章 + 短文本气泡；`select` 下可拖改位 | `stamps`、`textboxes`、`tool`、尺寸与选中 | `select`、`move-stamp`、`move-textbox`；新建落点在 stage |
+| [`AnnotationCallouts.vue`](./components/layers/AnnotationCallouts.vue) | SVG 引线/箭头 + DOM tip/box；草稿虚线预览 | `callouts`、`tool`、`draft-tip`、`draft-preview` | `select`、`move-tip`、`move-box`；整张 SVG `pointer-events: none` |
+| [`CommentPopover.vue`](./components/layers/CommentPopover.vue) | 侧栏编辑 comment / 短句 / 引注正文 / 高亮色；可删可关 | `annotation`、`focusToken` | 挂在 [`ReviewShell`](./components/ReviewShell.vue) aside，**不在** Surface 子树 |
+
+**一句话对照**
+
+- **Canvas**：只画笔迹，纯展示。
+- **Pins**：可点的钉，带空间索引可见性（[`useSpatialIndex`](./useSpatialIndex.ts)）。
+- **Markers**：图章 + 短文本展示与拖改位。
+- **Callouts**：引线 SVG + tip/box 展示与拖改位 + 草稿预览。
+- **CommentPopover**：侧栏改文案，不参与试卷叠层绘制。
+- **VuePaperSurface**：对齐答卷 DOM 与叠层，并把「创建」舞台事件与「改位/选中」层事件接到同一 Store。
+
+#### 图解 1：显示数据流
+
+```mermaid
+sequenceDiagram
+  participant Store as useAnnotationStore
+  participant Stage as useHtmlAnnotationStage
+  participant Surface as VuePaperSurface
+  participant Layers as LayerComponents
+
+  Store-->>Stage: annotations_change
+  Stage->>Stage: layoutAll
+  Note over Stage: pins_resolve_anchor_stamps_copy_coords_ranges_to_px
+  Stage-->>Surface: positioned_rects_canvasAnnotations_size
+  Surface-->>Layers: pass_as_props
+  Layers->>Layers: norm_coords_times_size_render
+```
+
+- 点标注（stamp / textbox / callout / stroke）：存好的 `x,y`（或 `points`）× `size`。
+- 划词：`layoutRangeMarks` → `underlineRects` / `highlightRects` → Surface 内联 `mark-layer`。
+- 划词预览：`previewRects` 同层半透明矩形。
+- 尺寸：`measureContent(contentBoxRef)` → 各层共享 `size.width/height`。
+
+#### 图解 2：事件拆分（创建 vs 拖改）
+
+```mermaid
+flowchart LR
+  subgraph createPath [创建路径_stage]
+    Tool[选工具]
+    StagePtr[stage_pointerDown_Move_Up]
+    Add[addStamp_addTextbox_callout_stroke_highlight]
+    Tool --> StagePtr --> Add
+  end
+
+  subgraph editPath [改位选中路径_layers]
+    Hit[点中_stamp_textbox_tip_box_pin]
+    Select[store.select]
+    Drag[window_pointerMove_阈值约3px]
+    Update[updateStamp_Textbox_Callout]
+    Hit --> Select
+    Hit --> Drag --> Update
+  end
+
+  Add --> StoreNode[useAnnotationStore]
+  Update --> StoreNode
+  Select --> PopoverNode[CommentPopover_侧栏]
+```
+
+| 场景 | 谁处理 | 结果 |
+|------|--------|------|
+| 选工具后在空白处落点 / 划词 / 画笔 | `stage` 上 `onPointerDown/Move/Up` | `addStamp` / `addTextbox` / `beginCallout` / `finishCallout` / `addStroke` / `addHighlight` … |
+| `select` 下拖图章 / 短文本 / 引注 tip·box | Markers / Callouts 本地拖拽 + `stopPropagation` | `updateStampPosition` / `updateTextboxPosition` / `updateCalloutTip` / `updateCalloutBox` |
+| 点选已有标记 | Layers emit `select` | `store.select` → 侧栏 Popover |
+| 引注二次落点过程中移动 | stage `onPointerMove` | `updateCalloutPreview` → Callouts 草稿虚线 |
+
+#### 图解 3：命中与 pointer-events
+
+```mermaid
+flowchart TB
+  Overlay[overlay-root_pointer-events_none]
+  Content[content_可划词采点]
+  SVG[callout-svg_pointer-events_none]
+  Interactive[stamp_textbox_tip_box_pin_pointer-events_auto]
+
+  Overlay -.->|"不挡下层"| Content
+  Overlay --> SVG
+  Overlay --> Interactive
+  SVG -.->|"不挡 Markers"| Interactive
+```
+
+面试易错点：引注层有一张铺满 SVG；若 SVG 可命中会挡住下层图章。当前 SVG 整层不命中，只有 tip/box 可点。
 
 ---
 
@@ -252,17 +399,153 @@ html-surface（滚动）
 **场景**  
 圈出句子再写评语；必须跟文字走，不能只存一个点。
 
-**交互**  
-按下拖选文本范围 → 松手生成标注；多段 `getClientRects` 铺矩形。
+**结论先说**  
+**不是**改答卷 DOM 给文字加 `<mark>` / CSS `text-decoration`。  
+而是：拖选时把指针换成答卷全文的**字符偏移**，持久化 `htmlAnchor`；展示时用 `Range.getClientRects()` 算出若干像素矩形，叠在 [`VuePaperSurface.vue`](./components/surfaces/VuePaperSurface.vue) 的 `mark-layer` 里画半透明高亮条或 2px 下划线。
 
-**数据**  
-强制 `htmlAnchor: { start, end, quote }`；展示时 `offsetToRange` → 相对 content-shell 的像素矩形。
+**核心文件**
 
-**调用链**  
-`caretOffsetFromPoint` 采起止 → `rangeToOffsets` → `addHighlight` / `addUnderline` → `layoutRangeMarks` → `mark-layer`。
+| 文件 | 职责 |
+|------|------|
+| [`htmlRange.ts`](./htmlRange.ts) | 文本节点线性化 + 点 / Range / offset 互转 |
+| [`useHtmlAnnotationStage.ts`](./useHtmlAnnotationStage.ts) | 拖选、预览、落库、`layoutRangeMarks` |
+| [`useAnnotationStore.ts`](./useAnnotationStore.ts) | `addHighlight` / `addUnderline` |
+| [`types.ts`](./types.ts) | `HtmlAnchor`、`HighlightAnnotation`、`UnderlineAnnotation` |
+| Surface 内联 `mark-layer` | 渲染矩形（非独立 layer 组件） |
 
-**易错**  
-Vue 组件 DOM 变化会导致 offset 漂移；生产应结合 `contentHash` 或更稳锚点（段落 id + 相对偏移）。图片/PDF 无 OCR，工具栏禁用划词。
+#### 数据模型
+
+```ts
+interface HtmlAnchor { start: number; end: number; quote: string }
+
+interface HighlightAnnotation {
+  kind: 'highlight'
+  surface: 'html'          // 类型锁死 HTML 答卷；图片/PDF 禁用
+  htmlAnchor: HtmlAnchor   // 必填，不存像素
+  color?: string           // 默认 #facc15，侧栏可改
+  comment?: string
+}
+
+interface UnderlineAnnotation {
+  kind: 'underline'
+  surface: 'html'
+  htmlAnchor: HtmlAnchor
+  color?: string           // 默认 #ef4444
+}
+```
+
+`quote` 取选区前 40 字，给侧栏 [`CommentPopover`](./components/layers/CommentPopover.vue) 展示原文摘录。
+
+#### 端到端流程
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Stage as useHtmlAnnotationStage
+  participant RangeApi as htmlRange
+  participant Store as useAnnotationStore
+  participant Surface as VuePaperSurface_markLayer
+
+  User->>Stage: pointerdown_highlight_or_underline
+  Stage->>RangeApi: caretOffsetFromPoint
+  RangeApi-->>Stage: draftStart_offset
+  User->>Stage: pointermove
+  Stage->>RangeApi: caretOffsetFromPoint
+  Stage->>Stage: updatePreview_offsetToRange_getClientRects
+  Stage-->>Surface: previewRects
+  User->>Stage: pointerup
+  Stage->>RangeApi: offsetToRange_then_rangeToOffsets
+  Stage->>Store: addHighlight_or_addUnderline
+  Store-->>Stage: annotations_watch
+  Stage->>Stage: layoutRangeMarks
+  Stage-->>Surface: highlightRects_or_underlineRects
+```
+
+##### 1. 拖选开始（pointerdown）
+
+`tool === 'highlight' | 'underline'` 时：
+
+1. `caretOffsetFromPoint(contentRef, clientX, clientY)` 得到全文 offset  
+2. `drawingRange = true`，记下 `draftStart` / `draftEnd`  
+3. `stageRef.setPointerCapture`，避免拖出区域丢事件  
+4. `preventDefault`，避免原生选区干扰  
+
+`caretOffsetFromPoint`：
+
+- Chrome：`document.caretRangeFromPoint`  
+- Firefox：`document.caretPositionFromPoint`  
+- 校验节点在 `contentRef`（试卷根）内  
+- 用 `TreeWalker(SHOW_TEXT)` 把该文本节点映射成**全文线性偏移**
+
+##### 2. 拖动预览（pointermove）
+
+持续采 `draftEnd`，调用 `updatePreview(start, end, color)`：
+
+1. `offsetToRange` 还原 DOM `Range`  
+2. `range.getClientRects()`（跨行会有多段矩形）  
+3. `stageRelativeFromClientRect(contentBoxRef, rect)` → 相对 content-shell 的像素  
+4. 写入 `previewRects`：  
+   - **高亮**：整段 `left/top/width/height`，色来自 `store.highlightColor`  
+   - **下划线**：`top = rel.top + rel.height - 2`，`height = 2`  
+
+Surface 用半透明 `.is-preview` 画出这些矩形。
+
+##### 3. 松手落库（pointerup → finishRangeMark）
+
+1. `end - start < 1` 则丢弃  
+2. `offsetToRange` → `rangeToOffsets` 得到 `{ start, end, quote }`  
+3. `store.addHighlight` 或 `addUnderline`（强制 `surface: 'html'`）  
+4. 选中该条并 `requestCommentFocus`，促使用户在侧栏写意见  
+5. 清空 `previewRects`
+
+##### 4. 持久展示（layoutRangeMarks）
+
+Store 变化触发 `layoutAll()`：
+
+```
+htmlAnchor → offsetToRange(contentRef)
+          → getClientRects()
+          → stageRelativeFromClientRect(contentBoxRef)
+          → highlightRects / underlineRects
+```
+
+一条标注可拆成多个 rect（`id` 形如 `${item.id}_${index}`）。  
+滚动 / resize 会再跑 `layoutAll`，矩形跟文字重对齐。
+
+##### 5. 渲染差异（Surface mark-layer）
+
+| | 高亮 | 下划线 |
+|--|------|--------|
+| 几何 | 覆盖文字整段高度 | 贴底 2px 条 |
+| 默认色 | `#facc15`，可改预设 | `#ef4444` |
+| CSS | `opacity: 0.35` | `opacity: 0.95` |
+| 交互 | `mark-layer` 整层 `pointer-events: none`，不挡后续划词 | 同左 |
+
+#### 文本偏移为何是「全文线性」
+
+```mermaid
+flowchart LR
+  DOM[PaperMarkingView_DOM]
+  Walker[TreeWalker_SHOW_TEXT]
+  Stream[linear_char_stream]
+  Anchor[htmlAnchor_start_end]
+  DOM --> Walker --> Stream --> Anchor
+```
+
+`textNodes(root)` 按文档序拼接所有 Text 节点。offset 是相对这整条字符流，不是相对某一段落的局部 index。  
+因此：**题型组件插入/删除文本节点、条件渲染改文案，都会让旧 offset 漂移。** Demo 用 `contentHash`（试卷 JSON 指纹）提示内容版本；生产需更稳锚点（段落 id + 相对偏移等）。图片/PDF 无 OCR，工具栏禁用划词。
+
+#### 与图章坐标策略对比（面试要点）
+
+| | 高亮/下划线 | 图章/短文本/引注 tip |
+|--|-------------|---------------------|
+| 存什么 | `htmlAnchor` 字符偏移 | 相对 content-shell 的 `x,y ∈ [0,1]` |
+| 为何 | 必须跟句子走，换行/滚动仍对准 | 固定纸宽，钉在试卷坐标即可 |
+| 重算 | 每次 layout 用 Range→rects | 直接 × width/height |
+
+**面试怎么说**
+
+> HTML 划词不存像素。存文本偏移，展示时用 Range 重算 `getClientRects`。滚动、换行后仍能对准原句；组件 DOM 大改要靠 contentHash 或更稳锚点兜底。
 
 ---
 
@@ -408,15 +691,17 @@ Vue 组件化答卷 + 分层批注：题型注册、固定纸宽坐标、文本�
 | [annotationRepository.ts](./annotationRepository.ts) | Draft 持久化 |
 | [components/PaperMarkingView.vue](./components/PaperMarkingView.vue) | Vue 阅卷壳 |
 | [components/topic/*](./components/topic/) | 只读题型组件 |
-| [components/surfaces/VuePaperSurface.vue](./components/surfaces/VuePaperSurface.vue) | Vue 试卷 + 叠层 |
+| [components/surfaces/VuePaperSurface.vue](./components/surfaces/VuePaperSurface.vue) | Vue 试卷 + 叠层装配 |
+| [useSpatialIndex.ts](./useSpatialIndex.ts) | Pins 可见性裁剪 |
+| [components/layers/AnnotationCanvas.vue](./components/layers/AnnotationCanvas.vue) | 画笔 stroke |
+| [components/layers/AnnotationPins.vue](./components/layers/AnnotationPins.vue) | 批注钉 DOM |
 | [components/layers/AnnotationMarkers.vue](./components/layers/AnnotationMarkers.vue) | 图章/短文本拖拽 |
-| [components/layers/AnnotationCallouts.vue](./components/layers/AnnotationCallouts.vue) | 引注 |
-| [components/layers/AnnotationCanvas.vue](./components/layers/AnnotationCanvas.vue) | 画笔 |
-| [components/layers/CommentPopover.vue](./components/layers/CommentPopover.vue) | 评论编辑 |
+| [components/layers/AnnotationCallouts.vue](./components/layers/AnnotationCallouts.vue) | 引注线 + tip/box |
+| [components/layers/CommentPopover.vue](./components/layers/CommentPopover.vue) | 侧栏评论编辑 |
 | [components/ReviewShell.vue](./components/ReviewShell.vue) | 工具栏与侧栏 |
 | [mocks/sample-paper.json](./mocks/sample-paper.json) | Demo 试卷 |
 
 ---
 
 **口述收束建议**  
-先画「JSON → 题型组件 → 固定宽 content-shell → 分层批注 → Store/Draft」一张图，再任选 **引注两步态** 或 **划词锚点 vs 图章坐标** 深挖一个点，最后主动补一句边界（hash、组件 DOM 对划词的影响）。
+先画「JSON → 题型组件 → 固定宽 content-shell → 分层批注 → Store/Draft」一张图（可直接用 [§3.4–3.5](#34-vuepapersurface-如何挂上批注) 的装配 / 数据流 / 事件拆分三图），再任选 **引注两步态** 或 **划词锚点 vs 图章坐标**（详解见 [§4.5](#45-高亮--下划线)）深挖一个点，最后主动补一句边界（hash、组件 DOM 对划词的影响）。

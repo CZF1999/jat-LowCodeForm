@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 引用
 import { computed, onUnmounted, ref } from 'vue'
 import type { CalloutAnnotation, CalloutDraftTip, ReviewTool } from '../../types'
 
@@ -10,6 +11,8 @@ const props = defineProps<{
   tool: ReviewTool
   draftTip?: CalloutDraftTip | null
   draftPreview?: CalloutDraftTip | null
+  /** Expand callout boxes so long text is not clipped when exporting PDF. */
+  exportMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -262,12 +265,13 @@ function onPointerUp(event: PointerEvent) {
 
     <button
       v-for="item in layouts"
+      v-show="!exportMode"
       :key="`tip_${item.id}`"
       type="button"
       class="tip-handle"
       :class="{
-        'is-selected': item.selected,
-        'is-draggable': canDrag,
+        'is-selected': item.selected && !exportMode,
+        'is-draggable': canDrag && !exportMode,
         'is-grabbing': grabbingKey === `tip:${item.id}`,
       }"
       :style="{
@@ -289,9 +293,10 @@ function onPointerUp(event: PointerEvent) {
       type="button"
       class="callout-box"
       :class="{
-        'is-selected': item.selected,
-        'is-draggable': canDrag,
+        'is-selected': item.selected && !exportMode,
+        'is-draggable': canDrag && !exportMode,
         'is-grabbing': grabbingKey === `box:${item.id}`,
+        'is-export': exportMode,
       }"
       :style="{
         left: `${item.boxLeft}px`,
@@ -385,5 +390,11 @@ function onPointerUp(event: PointerEvent) {
 
 .callout-box.is-selected {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35), 0 4px 14px rgba(15, 23, 42, 0.12);
+}
+
+.callout-box.is-export {
+  max-height: none;
+  overflow: visible;
+  box-shadow: none;
 }
 </style>

@@ -5,12 +5,14 @@ import {
   loadDraft,
   saveDraft,
 } from './annotationRepository'
+import { anchorsOverlap } from './htmlAnchorOverlap'
 import type {
   Annotation,
   AnnotationDraft,
   CalloutAnnotation,
   CalloutDraftTip,
   HighlightAnnotation,
+  HtmlAnchor,
   PinAnnotation,
   ReviewTool,
   StampAnnotation,
@@ -20,6 +22,12 @@ import type {
   TextboxAnnotation,
   UnderlineAnnotation,
 } from './types'
+
+export type AddRangeMarkResult<T> = {
+  annotation: T
+  /** False when rejected due to overlap with an existing same-kind mark. */
+  created: boolean
+}
 
 function uid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`
@@ -252,12 +260,28 @@ export function useAnnotationStore() {
     return stroke
   }
 
+  function findOverlappingRangeMark(
+    kind: 'highlight' | 'underline',
+    anchor: HtmlAnchor,
+  ): HighlightAnnotation | UnderlineAnnotation | null {
+    const hit = annotations.value.find((item) => {
+      if (item.kind !== kind || item.surface !== 'html') return false
+      return anchorsOverlap(item.htmlAnchor, anchor)
+    })
+    return (hit as HighlightAnnotation | UnderlineAnnotation | undefined) ?? null
+  }
+
   function addUnderline(
     partial: Omit<UnderlineAnnotation, 'id' | 'kind' | 'createdAt' | 'surface'> & {
       id?: string
       surface?: 'html'
     },
-  ) {
+  ): AddRangeMarkResult<UnderlineAnnotation> {
+    const existing = findOverlappingRangeMark('underline', partial.htmlAnchor)
+    if (existing && existing.kind === 'underline') {
+      selectedId.value = existing.id
+      return { annotation: existing, created: false }
+    }
     const underline: UnderlineAnnotation = {
       id: partial.id ?? uid('underline'),
       kind: 'underline',
@@ -270,7 +294,7 @@ export function useAnnotationStore() {
     annotations.value = [...annotations.value, underline]
     selectedId.value = underline.id
     requestCommentFocus()
-    return underline
+    return { annotation: underline, created: true }
   }
 
   function addHighlight(
@@ -278,7 +302,12 @@ export function useAnnotationStore() {
       id?: string
       surface?: 'html'
     },
-  ) {
+  ): AddRangeMarkResult<HighlightAnnotation> {
+    const existing = findOverlappingRangeMark('highlight', partial.htmlAnchor)
+    if (existing && existing.kind === 'highlight') {
+      selectedId.value = existing.id
+      return { annotation: existing, created: false }
+    }
     const highlight: HighlightAnnotation = {
       id: partial.id ?? uid('highlight'),
       kind: 'highlight',
@@ -291,7 +320,7 @@ export function useAnnotationStore() {
     annotations.value = [...annotations.value, highlight]
     selectedId.value = highlight.id
     requestCommentFocus()
-    return highlight
+    return { annotation: highlight, created: true }
   }
 
   function updateComment(id: string, comment: string) {

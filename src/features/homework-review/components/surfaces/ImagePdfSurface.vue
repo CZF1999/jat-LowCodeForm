@@ -6,6 +6,11 @@ import AnnotationCallouts from '../layers/AnnotationCallouts.vue'
 import AnnotationCanvas from '../layers/AnnotationCanvas.vue'
 import AnnotationMarkers from '../layers/AnnotationMarkers.vue'
 import AnnotationPins from '../layers/AnnotationPins.vue'
+import {
+  beginExportRootLayout,
+  endExportRootLayout,
+  expandStageForOverflow,
+} from '../../exportAnnotatedPdf'
 import { useAnnotationStore } from '../../useAnnotationStore'
 import { useSpatialIndex } from '../../useSpatialIndex'
 import samplePage from '../../assets/sample-page.svg'
@@ -13,6 +18,7 @@ import samplePage from '../../assets/sample-page.svg'
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker
 
 const store = useAnnotationStore()
+const rootRef = ref<HTMLElement | null>(null)
 const stageRef = ref<HTMLElement | null>(null)
 const pageFrameRef = ref<HTMLElement | null>(null)
 const baseCanvasRef = ref<HTMLCanvasElement | null>(null)
@@ -21,6 +27,7 @@ const imgRef = ref<HTMLImageElement | null>(null)
 const pageSize = ref({ width: 720, height: 960 })
 const drawing = ref(false)
 const draftPoints = ref<Array<{ x: number; y: number }>>([])
+const exportMode = ref(false)
 
 const GUTTER = 64
 
@@ -224,14 +231,39 @@ onUnmounted(() => {
 watch(() => store.surface.value, () => {
   void setupSurface()
 })
+
+async function prepareExport() {
+  store.select(null)
+  store.cancelCalloutDraft()
+  exportMode.value = true
+  beginExportRootLayout(rootRef.value)
+  await nextTick()
+  expandStageForOverflow(stageRef.value)
+  await nextTick()
+}
+
+function restoreExport() {
+  exportMode.value = false
+  endExportRootLayout(rootRef.value, stageRef.value)
+}
+
+function getExportRoot() {
+  return stageRef.value
+}
+
+defineExpose({
+  getExportRoot,
+  prepareExport,
+  restoreExport,
+})
 </script>
 
 <template>
-  <div class="surface">
+  <div ref="rootRef" class="surface" :class="{ 'is-exporting': exportMode }">
     <div
       ref="stageRef"
       class="stage"
-      :class="`tool-${store.tool.value}`"
+      :class="[`tool-${store.tool.value}`, { 'is-exporting': exportMode }]"
       :style="{ width: `${stageOuter.width}px`, height: `${stageOuter.height}px` }"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
@@ -284,6 +316,7 @@ watch(() => store.surface.value, () => {
             :width="pageSize.width"
             :height="pageSize.height"
             :tool="store.tool.value"
+            :export-mode="exportMode"
             @select="store.select"
             @move-stamp="store.updateStampPosition"
             @move-textbox="store.updateTextboxPosition"
@@ -294,8 +327,9 @@ watch(() => store.surface.value, () => {
             :width="pageSize.width"
             :height="pageSize.height"
             :tool="store.tool.value"
-            :draft-tip="store.calloutDraftTip.value"
-            :draft-preview="store.calloutPreview.value"
+            :draft-tip="exportMode ? null : store.calloutDraftTip.value"
+            :draft-preview="exportMode ? null : store.calloutPreview.value"
+            :export-mode="exportMode"
             @select="store.select"
             @move-tip="store.updateCalloutTip"
             @move-box="store.updateCalloutBox"
@@ -314,6 +348,11 @@ watch(() => store.surface.value, () => {
   box-sizing: border-box;
 }
 
+.surface.is-exporting {
+  overflow: visible;
+  height: auto;
+}
+
 .stage {
   position: relative;
   margin: 0 auto;
@@ -322,6 +361,10 @@ watch(() => store.surface.value, () => {
   touch-action: none;
   user-select: none;
   overflow: visible;
+}
+
+.stage.is-exporting {
+  box-shadow: none;
 }
 
 .page-frame {

@@ -1,28 +1,28 @@
 {
   "bmmc": "湖南省长沙市公an局",
-  "ksmc": "cdcdcdcdc",
+  "ksmc": "cdcdcdcdc（导出分页联调卷）",
   "ryjh": "11000000",
   "ryxm": "张三总",
-  "sc": 3,
+  "sc": 45,
   "sjid": 79,
-  "sjzf": 7.0,
+  "sjzf": 21.0,
   "stjkssj": "",
   "strtkssj": "",
   "tmldzfm": 0,
   "yjtxxx": [
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "dxt",
-      "tmsl": 1,
+      "tmsl": 3,
       "tmxx": [
         {
           "df": 0,
           "flid": 35,
           "kgtda": "未作答",
           "tkid": 31,
-          "tm": "89",
+          "tm": "89。请根据题干选择唯一正确答案，并注意单位是否一致。",
           "tmid": 152,
           "tmlxdm": "dxt",
           "xztxx": [
@@ -31,22 +31,54 @@
             { "sfzq": "0", "tmid": 152, "xxdm": "C", "xxnr": "3" }
           ],
           "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "在治安巡逻勤务中，下列哪一项最能体现“预防为主”的工作要求？请结合日常执勤场景作答。",
+          "tmid": 1152,
+          "tmlxdm": "dxt",
+          "xztxx": [
+            { "sfzq": "0", "tmid": 1152, "xxdm": "A", "xxnr": "只在案发后快速出警" },
+            { "sfzq": "1", "tmid": 1152, "xxdm": "B", "xxnr": "围绕重点部位开展常态巡控与隐患排查" },
+            { "sfzq": "0", "tmid": 1152, "xxdm": "C", "xxnr": "尽量减少与群众接触以免引发投诉" },
+            { "sfzq": "0", "tmid": 1152, "xxdm": "D", "xxnr": "把巡控任务全部委托给物业保安" }
+          ],
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "kgtda": "B",
+          "tkid": 31,
+          "tm": "关于电子答卷批注导出 PDF 的测试题：若页面很长且页边有引注框，导出时更应优先保证什么？",
+          "tmid": 1153,
+          "tmlxdm": "dxt",
+          "xztxx": [
+            { "sfzq": "0", "tmid": 1153, "xxdm": "A", "xxnr": "只截当前视口以加快速度" },
+            { "sfzq": "1", "tmid": 1153, "xxdm": "B", "xxnr": "完整保留试卷内容与批注点，避免截断" },
+            { "sfzq": "0", "tmid": 1153, "xxdm": "C", "xxnr": "忽略高亮层，只导出纯文字" },
+            { "sfzq": "0", "tmid": 1153, "xxdm": "D", "xxnr": "强制单页缩放到看不清为止" }
+          ],
+          "zgtda": "B"
         }
       ]
     },
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "duoxt",
-      "tmsl": 1,
+      "tmsl": 3,
       "tmxx": [
         {
           "df": 0,
           "flid": 2,
           "kgtda": "未作答",
           "tkid": 3,
-          "tm": "通常洒报有哪些类型？",
+          "tm": "通常洒报有哪些类型？请选择全部正确项。",
           "tmid": 454,
           "tmlxdm": "duoxt",
           "xztxx": [
@@ -56,15 +88,47 @@
             { "sfzq": "1", "tmid": 454, "xxdm": "D", "xxnr": "发现团伙完成洒报" }
           ],
           "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 2,
+          "kgtda": "未作答",
+          "tkid": 3,
+          "tm": "开展大型活动安保时，下列哪些措施属于现场管控要点？可多选。",
+          "tmid": 1454,
+          "tmlxdm": "duoxt",
+          "xztxx": [
+            { "sfzq": "1", "tmid": 1454, "xxdm": "A", "xxnr": "出入口安检与限流分流" },
+            { "sfzq": "1", "tmid": 1454, "xxdm": "B", "xxnr": "重点区域巡控与应急通道保持畅通" },
+            { "sfzq": "0", "tmid": 1454, "xxdm": "C", "xxnr": "完全禁止急救车辆进入核心区" },
+            { "sfzq": "1", "tmid": 1454, "xxdm": "D", "xxnr": "建立指挥联络与突发事件上报机制" }
+          ],
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 2,
+          "kgtda": "AC",
+          "tkid": 3,
+          "tm": "关于批注工具能力，下列说法正确的有哪些？（用于拉长试卷、验证多页导出）",
+          "tmid": 1455,
+          "tmlxdm": "duoxt",
+          "xztxx": [
+            { "sfzq": "1", "tmid": 1455, "xxdm": "A", "xxnr": "高亮/下划线依赖文本偏移锚点" },
+            { "sfzq": "0", "tmid": 1455, "xxdm": "B", "xxnr": "图片载体也支持 OCR 划词高亮" },
+            { "sfzq": "1", "tmid": 1455, "xxdm": "C", "xxnr": "引注由尖点与页边文本框组成" },
+            { "sfzq": "0", "tmid": 1455, "xxdm": "D", "xxnr": "导出 PDF 可以只截滚动视口" }
+          ],
+          "zgtda": "AC"
         }
       ]
     },
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "bdxt",
-      "tmsl": 1,
+      "tmsl": 3,
       "tmxx": [
         {
           "df": 0,
@@ -72,7 +136,7 @@
           "jb": "1",
           "kgtda": "未作答",
           "tkid": 31,
-          "tm": "123",
+          "tm": "123。不定项：下列选项中正确的是？",
           "tmid": 16,
           "tmlxdm": "bdxt",
           "xztxx": [
@@ -81,15 +145,49 @@
             { "sfzq": "0", "tmid": 16, "xxdm": "C", "xxnr": "4" }
           ],
           "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "1",
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "接到噪音扰民警情后，民警可以采取的处置方式包括？",
+          "tmid": 1016,
+          "tmlxdm": "bdxt",
+          "xztxx": [
+            { "sfzq": "1", "tmid": 1016, "xxdm": "A", "xxnr": "现场了解情况并劝导制止" },
+            { "sfzq": "1", "tmid": 1016, "xxdm": "B", "xxnr": "视情节依法予以警告或处罚" },
+            { "sfzq": "0", "tmid": 1016, "xxdm": "C", "xxnr": "未经核实直接强制拆除设备" },
+            { "sfzq": "1", "tmid": 1016, "xxdm": "D", "xxnr": "做好记录并视情回访" }
+          ],
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "2",
+          "kgtda": "AB",
+          "tkid": 31,
+          "tm": "为验证长卷导出，请选择与“不截断批注”相关的正确表述。",
+          "tmid": 1017,
+          "tmlxdm": "bdxt",
+          "xztxx": [
+            { "sfzq": "1", "tmid": 1017, "xxdm": "A", "xxnr": "应捕获完整 stage（含 gutter）" },
+            { "sfzq": "1", "tmid": 1017, "xxdm": "B", "xxnr": "分页应尽量避开引注框内部" },
+            { "sfzq": "0", "tmid": 1017, "xxdm": "C", "xxnr": "长引注保持 max-height 裁切即可" },
+            { "sfzq": "0", "tmid": 1017, "xxdm": "D", "xxnr": "高亮可用绝对定位块硬编码到 PDF" }
+          ],
+          "zgtda": "AB"
         }
       ]
     },
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "pdt",
-      "tmsl": 1,
+      "tmsl": 3,
       "tmxx": [
         {
           "df": 0,
@@ -98,19 +196,43 @@
           "kgtda": "未作答",
           "pdtxx": [{ "sfzq": "1", "tmid": 12 }],
           "tkid": 31,
-          "tm": "1123123",
+          "tm": "1123123。判断：该陈述正确。",
           "tmid": 12,
           "tmlxdm": "pdt",
           "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "2",
+          "kgtda": "未作答",
+          "pdtxx": [{ "sfzq": "0", "tmid": 1012 }],
+          "tkid": 31,
+          "tm": "巡逻途中发现火灾隐患，民警可以只口头提醒后离开，无需登记或督促整改。",
+          "tmid": 1012,
+          "tmlxdm": "pdt",
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "1",
+          "kgtda": "正确",
+          "pdtxx": [{ "sfzq": "1", "tmid": 1013 }],
+          "tkid": 31,
+          "tm": "导出 PDF 前将高亮烘焙进文本节点，有助于避免截图库重绘后的错位。",
+          "tmid": 1013,
+          "tmlxdm": "pdt",
+          "zgtda": "正确"
         }
       ]
     },
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "tkt",
-      "tmsl": 1,
+      "tmsl": 3,
       "tmxx": [
         {
           "df": 0,
@@ -121,19 +243,47 @@
             { "sx": 1, "tmid": 9, "zqda": "1" },
             { "sx": 2, "tmid": 9, "zqda": "2" }
           ],
-          "tm": "测试北京（1）（2）",
+          "tm": "测试北京（1）（2）。请填写空缺内容。",
           "tmid": 9,
           "tmlxdm": "tkt",
           "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tktxx": [
+            { "sx": 1, "tmid": 1009, "zqda": "指挥中心" },
+            { "sx": 2, "tmid": 1009, "zqda": "现场处置组" }
+          ],
+          "tm": "突发事件响应时，应先向（1）报告，再由（2）落地处置。",
+          "tmid": 1009,
+          "tmlxdm": "tkt",
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "kgtda": "stage gutter",
+          "tkid": 31,
+          "tktxx": [
+            { "sx": 1, "tmid": 1010, "zqda": "stage" },
+            { "sx": 2, "tmid": 1010, "zqda": "gutter" }
+          ],
+          "tm": "PDF 导出应捕获完整（1），并保留左右（2）以免裁切引注。",
+          "tmid": 1010,
+          "tmlxdm": "tkt",
+          "zgtda": "stage gutter"
         }
       ]
     },
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "jdt",
-      "tmsl": 1,
+      "tmsl": 3,
       "tmxx": [
         {
           "df": 0,
@@ -141,8 +291,40 @@
           "jdtxx": [{ "ckda": "123123", "tmid": 235 }],
           "kgtda": "未作答",
           "tkid": 31,
-          "tm": "123123",
+          "tm": "123123。请简要作答。",
           "tmid": 235,
+          "tmlxdm": "jdt",
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jdtxx": [
+            {
+              "ckda": "先控场，再固定证据，再开展询问，并及时上报进展。",
+              "tmid": 1235
+            }
+          ],
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "简述一起街头斗殴警情的现场处置基本步骤，要求条理清晰，不少于三句。本题用于拉长答卷高度，方便验证多页 PDF 导出与批注分页。",
+          "tmid": 1235,
+          "tmlxdm": "jdt",
+          "zgtda": "未作答"
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jdtxx": [
+            {
+              "ckda": "导出前烘焙高亮到文本；捕获完整 stage；按批注 bbox 智能分页。",
+              "tmid": 1236
+            }
+          ],
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "请说明“批注页导出 PDF 不截断、不高亮错位”的实现要点。可从烘焙划词、舞台捕获、智能分页三方面展开，文字可稍长以便分页测试。\n第一段：为什么绝对定位高亮在截图库重绘后会错位。\n第二段：如何保证 gutter 内引注完整入图。\n第三段：长卷分页时如何避开批注块。",
+          "tmid": 1236,
           "tmlxdm": "jdt",
           "zgtda": "未作答"
         }
@@ -150,10 +332,10 @@
     },
     {
       "dgtmlxdf": 0,
-      "dgtmlxzf": 1.0,
+      "dgtmlxzf": 3.0,
       "fs": 1.0,
       "tmlxdm": "alt",
-      "tmsl": 1,
+      "tmsl": 2,
       "tmxx": [
         {
           "df": 0,
@@ -161,7 +343,7 @@
           "jb": "1",
           "kgtda": "未作答",
           "tkid": 31,
-          "tm": "单选题",
+          "tm": "案例一：夜间商圈巡控。请结合下列子题作答。背景材料：周五晚高峰人流密集，商铺外摆占道，偶有醉酒争吵，需统筹疏导与执法尺度。",
           "tmid": 190,
           "tmlxdm": "alt",
           "zgtda": "未作答",
@@ -172,7 +354,7 @@
               "jdtxx": [{ "ckda": "sdfdfsdf", "tmid": 191 }],
               "kgtda": "未作答",
               "tkid": 31,
-              "tm": "erwe",
+              "tm": "erwe。请说明你将如何安排警力与巡线。",
               "tmid": 191,
               "tmjx": "",
               "tmlxdm": "jdt",
@@ -183,7 +365,7 @@
               "flid": 35,
               "kgtda": "未作答",
               "tkid": 31,
-              "tm": "123",
+              "tm": "123。现场优先处置顺序正确的是？",
               "tmid": 192,
               "tmjx": "",
               "tmlxdm": "bdxt",
@@ -200,7 +382,7 @@
               "kgtda": "未作答",
               "tkid": 31,
               "tktxx": [{ "sx": 1, "tmid": 193, "zqda": "123123" }],
-              "tm": "1232()",
+              "tm": "1232()。请填写关键信息。",
               "tmid": 193,
               "tmjx": "",
               "tmlxdm": "tkt",
@@ -212,7 +394,7 @@
               "kgtda": "未作答",
               "pdtxx": [{ "sfzq": "1", "tmid": 194 }],
               "tkid": 31,
-              "tm": "234",
+              "tm": "234。判断：外摆占道应优先保障消防通道畅通。",
               "tmid": 194,
               "tmjx": "",
               "tmlxdm": "pdt",
@@ -223,7 +405,7 @@
               "flid": 35,
               "kgtda": "未作答",
               "tkid": 31,
-              "tm": "123",
+              "tm": "123。单选：最先应联系的对象是？",
               "tmid": 195,
               "tmjx": "",
               "tmlxdm": "dxt",
@@ -239,7 +421,7 @@
               "flid": 35,
               "kgtda": "未作答",
               "tkid": 31,
-              "tm": "2",
+              "tm": "2。多选：可同步开展的工作有？",
               "tmid": 196,
               "tmjx": "",
               "tmlxdm": "duoxt",
@@ -255,7 +437,7 @@
               "flid": 35,
               "kgtda": "未作答",
               "tkid": 31,
-              "tm": "312",
+              "tm": "312。单选巩固题。",
               "tmid": 197,
               "tmlxdm": "dxt",
               "xztxx": [
@@ -270,7 +452,7 @@
               "flid": 35,
               "kgtda": "未作答",
               "tkid": 31,
-              "tm": "123",
+              "tm": "123。单选巩固题二。",
               "tmid": 198,
               "tmjx": "",
               "tmlxdm": "dxt",
@@ -279,6 +461,65 @@
                 { "sfzq": "1", "tmid": 198, "xxdm": "B", "xxnr": "2" },
                 { "sfzq": "0", "tmid": 198, "xxdm": "C", "xxnr": "3" }
               ],
+              "zgtda": "未作答"
+            }
+          ]
+        },
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "2",
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "案例二：导出联调长文案。背景：教师在 Vue/HTML 两种试卷载体上做了大量高亮、下划线与引注，需要导出多页 PDF 验证分页与对齐。请完成下列子题，文案故意加长以便滚动与分页。",
+          "tmid": 290,
+          "tmlxdm": "alt",
+          "zgtda": "未作答",
+          "ztmList": [
+            {
+              "df": 0,
+              "flid": 35,
+              "jdtxx": [
+                {
+                  "ckda": "先确认载体与内容哈希，再导出；导出失败应恢复 DOM。",
+                  "tmid": 291
+                }
+              ],
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "请写出一次完整的“批注完成后导出 PDF”操作检查清单，至少列出五项。",
+              "tmid": 291,
+              "tmjx": "",
+              "tmlxdm": "jdt",
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "下列哪些属于导出前应处理的事项？",
+              "tmid": 292,
+              "tmjx": "",
+              "tmlxdm": "duoxt",
+              "xztxx": [
+                { "sfzq": "1", "tmid": 292, "xxdm": "A", "xxnr": "取消未完成引注草稿" },
+                { "sfzq": "1", "tmid": 292, "xxdm": "B", "xxnr": "展开长引注全文" },
+                { "sfzq": "0", "tmid": 292, "xxdm": "C", "xxnr": "删除全部高亮以减小体积" },
+                { "sfzq": "1", "tmid": 292, "xxdm": "D", "xxnr": "滚动位置归零再截图" }
+              ],
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "pdtxx": [{ "sfzq": "1", "tmid": 293 }],
+              "tkid": 31,
+              "tm": "判断：截图克隆导致文字回流时，内联烘焙高亮比绝对定位覆盖层更稳。",
+              "tmid": 293,
+              "tmjx": "",
+              "tmlxdm": "pdt",
               "zgtda": "未作答"
             }
           ]

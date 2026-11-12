@@ -1,7 +1,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch, type Ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
   boxMetrics,
   caretOffsetFromPoint,
+  clientRectsForRange,
   offsetToRange,
   rangeToOffsets,
   stageRelativeFromClientRect,
@@ -125,7 +127,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
     for (const item of items) {
       const range = offsetToRange(root, item.htmlAnchor.start, item.htmlAnchor.end)
       if (!range) continue
-      const rects = Array.from(range.getClientRects())
+      const rects = clientRectsForRange(root, range)
       for (const rect of rects) {
         if (rect.width <= 0 || rect.height <= 0) continue
         const rel = stageRelativeFromClientRect(box, rect)
@@ -187,9 +189,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
       return
     }
     const isHighlight = store.tool.value === 'highlight'
-    previewRects.value = Array.from(range.getClientRects())
-      .filter((rect) => rect.width > 0 && rect.height > 0)
-      .map((rect) => {
+    previewRects.value = clientRectsForRange(root, range).map((rect) => {
         const rel = stageRelativeFromClientRect(box, rect)
         return isHighlight
           ? {
@@ -274,6 +274,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
       const root = contentRef.value
       if (!root) return
       const offset = caretOffsetFromPoint(root, event.clientX, event.clientY)
+      console.log('offset', offset)
       if (offset == null) return
       drawingRange.value = true
       draftStart.value = offset
@@ -297,6 +298,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
     const root = contentRef.value
     if (!root || draftStart.value == null) return
     const offset = caretOffsetFromPoint(root, event.clientX, event.clientY)
+    console.log('offset', offset)
     if (offset == null) return
     draftEnd.value = offset
     updatePreview(
@@ -323,13 +325,23 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
     const anchor = rangeToOffsets(root, range)
     if (!anchor) return
     if (store.tool.value === 'highlight') {
-      store.addHighlight({
+      const result = store.addHighlight({
         htmlAnchor: anchor,
         comment: '',
         color: store.highlightColor.value,
       })
+      if (!result.created) {
+        ElMessage.info('该区域已有高亮')
+      }
     } else if (store.tool.value === 'underline') {
-      store.addUnderline({ htmlAnchor: anchor, comment: '', color: '#ef4444' })
+      const result = store.addUnderline({
+        htmlAnchor: anchor,
+        comment: '',
+        color: '#ef4444',
+      })
+      if (!result.created) {
+        ElMessage.info('该区域已有下划线')
+      }
     }
   }
 

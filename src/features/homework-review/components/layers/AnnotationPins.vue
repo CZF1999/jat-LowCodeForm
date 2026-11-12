@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 批注钉
 import { computed } from 'vue'
 import type { PinAnnotation } from '../../types'
 
