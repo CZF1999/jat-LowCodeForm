@@ -3,7 +3,9 @@ import { computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import ImagePdfSurface from './surfaces/ImagePdfSurface.vue'
 import HtmlRichSurface from './surfaces/HtmlRichSurface.vue'
+import VuePaperSurface from './surfaces/VuePaperSurface.vue'
 import CommentPopover from './layers/CommentPopover.vue'
+import { useAnswerContent } from '../useAnswerContent'
 import { useAnnotationStore } from '../useAnnotationStore'
 import {
   HIGHLIGHT_PRESET_COLORS,
@@ -15,6 +17,7 @@ import {
 } from '../types'
 
 const store = useAnnotationStore()
+const answerContent = useAnswerContent()
 
 const list = computed(() => store.surfaceAnnotations.value.slice().reverse())
 
@@ -123,10 +126,17 @@ async function reloadDraft() {
 }
 
 onMounted(() => {
+  store.contentHash.value = answerContent.contentHash.value
   void store.loadFromRepository().then((draft) => {
     if (draft) ElMessage.success('已自动回显上次草稿')
   })
 })
+
+function onTogglePaperMode() {
+  answerContent.togglePaperMode()
+  store.contentHash.value = answerContent.contentHash.value
+  ElMessage.info(`已切换为${answerContent.sourceLabel.value}`)
+}
 </script>
 
 <template>
@@ -195,6 +205,15 @@ onMounted(() => {
         <button type="button" :class="{ active: store.tool.value === 'pen' }" @click="onTool('pen')">画笔</button>
       </div>
       <div class="group">
+        <button
+          v-if="store.surface.value === 'html'"
+          type="button"
+          :class="{ active: answerContent.paperMode.value === 'vue' }"
+          :title="answerContent.compareHint.value"
+          @click="onTogglePaperMode"
+        >
+          试卷：{{ answerContent.sourceLabel.value }}
+        </button>
         <button type="button" @click="store.generateStressPins(2000)">生成 2000 钉</button>
         <button type="button" @click="store.clearSurface()">清空当前载体</button>
         <button type="button" class="primary" @click="saveDraft">保存</button>
@@ -209,12 +228,20 @@ onMounted(() => {
 
     <div class="body">
       <main class="main">
-        <HtmlRichSurface v-if="store.surface.value === 'html'" />
+        <VuePaperSurface
+          v-if="store.surface.value === 'html' && answerContent.paperMode.value === 'vue'"
+        />
+        <HtmlRichSurface
+          v-else-if="store.surface.value === 'html'"
+        />
         <ImagePdfSurface v-else />
       </main>
 
       <aside class="side">
         <h3>批注列表（最多显示 80）</h3>
+        <p v-if="store.surface.value === 'html'" class="meta compare">
+          {{ answerContent.compareHint.value }}
+        </p>
         <p class="meta">当前载体共 {{ list.length }} 条</p>
         <ul class="list">
           <li
@@ -359,6 +386,14 @@ button:disabled {
   margin: 4px 0 10px;
   color: #64748b;
   font-size: 12px;
+}
+
+.meta.compare {
+  line-height: 1.5;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 
 .list {

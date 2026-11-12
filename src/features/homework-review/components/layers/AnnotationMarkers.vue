@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import {
   STAMP_SYMBOL_LABEL,
+  type ReviewTool,
   type StampAnnotation,
   type TextboxAnnotation,
 } from '../../types'
@@ -12,11 +13,34 @@ const props = defineProps<{
   selectedId: string | null
   width: number
   height: number
+  tool: ReviewTool
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
+  'move-stamp': [id: string, x: number, y: number]
+  'move-textbox': [id: string, x: number, y: number]
 }>()
+
+const DRAG_THRESHOLD_PX = 3
+
+type DragKind = 'stamp' | 'textbox'
+
+interface DragState {
+  kind: DragKind
+  id: string
+  pointerId: number
+  startClientX: number
+  startClientY: number
+  originX: number
+  originY: number
+  moved: boolean
+}
+
+const drag = ref<DragState | null>(null)
+const grabbingId = ref<string | null>(null)
+
+const canDrag = computed(() => props.tool === 'select')
 
 const placedStamps = computed(() =>
   props.stamps.filter((item) => Number.isFinite(item.x) && Number.isFinite(item.y)),
@@ -25,6 +49,10 @@ const placedStamps = computed(() =>
 const placedTextboxes = computed(() =>
   props.textboxes.filter((item) => Number.isFinite(item.x) && Number.isFinite(item.y)),
 )
+
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n))
+}
 
 function stampStyle(item: StampAnnotation) {
   return {
@@ -41,6 +69,74 @@ function textboxStyle(item: TextboxAnnotation) {
     borderColor: item.color || '#b45309',
   }
 }
+
+function detachWindowDrag() {
+  window.removeEventListener('pointermove', onPointerMove)
+  window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('pointercancel', onPointerUp)
+}
+
+onUnmounted(() => {
+  detachWindowDrag()
+  drag.value = null
+  grabbingId.value = null
+})
+
+function onPointerDown(
+  event: PointerEvent,
+  kind: DragKind,
+  id: string,
+  originX: number,
+  originY: number,
+) {
+  event.stopPropagation()
+  emit('select', id)
+  if (!canDrag.value) return
+  event.preventDefault()
+  ;(event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId)
+  drag.value = {
+    kind,
+    id,
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    originX,
+    originY,
+    moved: false,
+  }
+  grabbingId.value = id
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerUp)
+}
+
+function onPointerMove(event: PointerEvent) {
+  const state = drag.value
+  if (!state || event.pointerId !== state.pointerId) return
+  const dx = event.clientX - state.startClientX
+  const dy = event.clientY - state.startClientY
+  if (!state.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+  state.moved = true
+  const w = Math.max(props.width, 1)
+  const h = Math.max(props.height, 1)
+  const x = clamp01(state.originX + dx / w)
+  const y = clamp01(state.originY + dy / h)
+  if (state.kind === 'stamp') emit('move-stamp', state.id, x, y)
+  else emit('move-textbox', state.id, x, y)
+}
+
+function onPointerUp(event: PointerEvent) {
+  const state = drag.value
+  if (!state || event.pointerId !== state.pointerId) return
+  try {
+    ;(event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId)
+  } catch {
+    /* already released */
+  }
+  drag.value = null
+  grabbingId.value = null
+  detachWindowDrag()
+}
 </script>
 
 <template>
@@ -50,9 +146,17 @@ function textboxStyle(item: TextboxAnnotation) {
       :key="item.id"
       type="button"
       class="stamp"
-      :class="{ 'is-selected': item.id === selectedId }"
+      :class="{
+        'is-selected': item.id === selectedId,
+        'is-draggable': canDrag,
+        'is-grabbing': grabbingId === item.id,
+      }"
       :style="stampStyle(item)"
       :title="item.comment || STAMP_SYMBOL_LABEL[item.symbol]"
+      @pointerdown="onPointerDown($event, 'stamp', item.id, item.x, item.y)"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
       @click.stop="emit('select', item.id)"
     >
       {{ STAMP_SYMBOL_LABEL[item.symbol] }}
@@ -63,9 +167,17 @@ function textboxStyle(item: TextboxAnnotation) {
       :key="item.id"
       type="button"
       class="textbox"
-      :class="{ 'is-selected': item.id === selectedId }"
+      :class="{
+        'is-selected': item.id === selectedId,
+        'is-draggable': canDrag,
+        'is-grabbing': grabbingId === item.id,
+      }"
       :style="textboxStyle(item)"
       :title="item.text || item.comment || '短文本'"
+      @pointerdown="onPointerDown($event, 'textbox', item.id, item.x, item.y)"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
       @click.stop="emit('select', item.id)"
     >
       {{ item.text || '短文本…' }}
@@ -88,6 +200,17 @@ function textboxStyle(item: TextboxAnnotation) {
   cursor: pointer;
   padding: 0;
   font: inherit;
+  touch-action: none;
+}
+
+.stamp.is-draggable,
+.textbox.is-draggable {
+  cursor: grab;
+}
+
+.stamp.is-grabbing,
+.textbox.is-grabbing {
+  cursor: grabbing;
 }
 
 .stamp {

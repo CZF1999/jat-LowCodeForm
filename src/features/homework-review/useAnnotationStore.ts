@@ -126,6 +126,7 @@ export function useAnnotationStore() {
       tipY?: number
       boxX?: number
       boxY?: number
+      tipHtmlAnchor?: CalloutAnnotation['tipHtmlAnchor']
     },
   ) {
     const tip = calloutDraftTip.value
@@ -134,6 +135,7 @@ export function useAnnotationStore() {
       ...partial,
       tipX: tip.x,
       tipY: tip.y,
+      tipHtmlAnchor: partial.tipHtmlAnchor ?? tip.htmlAnchor,
       boxX: box.x,
       boxY: box.y,
     })
@@ -201,6 +203,7 @@ export function useAnnotationStore() {
       x: partial.x,
       y: partial.y,
       text: partial.text ?? '',
+      htmlAnchor: partial.htmlAnchor,
     }
     annotations.value = [...annotations.value, textbox]
     selectedId.value = textbox.id
@@ -221,6 +224,7 @@ export function useAnnotationStore() {
       pageIndex: partial.pageIndex,
       tipX: partial.tipX,
       tipY: partial.tipY,
+      tipHtmlAnchor: partial.tipHtmlAnchor,
       boxX: partial.boxX,
       boxY: partial.boxY,
       text: partial.text ?? '',
@@ -311,6 +315,48 @@ export function useAnnotationStore() {
   function updateCalloutText(id: string, text: string) {
     annotations.value = annotations.value.map((item) =>
       item.id === id && item.kind === 'callout' ? { ...item, text: text.slice(0, 200) } : item,
+    )
+  }
+
+  function clamp01(n: number) {
+    return Math.min(1, Math.max(0, n))
+  }
+
+  function updateStampPosition(id: string, x: number, y: number) {
+    const nx = clamp01(x)
+    const ny = clamp01(y)
+    annotations.value = annotations.value.map((item) =>
+      item.id === id && item.kind === 'stamp'
+        ? { ...item, x: nx, y: ny, htmlAnchor: undefined }
+        : item,
+    )
+  }
+
+  function updateTextboxPosition(id: string, x: number, y: number) {
+    const nx = clamp01(x)
+    const ny = clamp01(y)
+    annotations.value = annotations.value.map((item) =>
+      item.id === id && item.kind === 'textbox'
+        ? { ...item, x: nx, y: ny, htmlAnchor: undefined }
+        : item,
+    )
+  }
+
+  function updateCalloutTip(id: string, tipX: number, tipY: number) {
+    const nx = clamp01(tipX)
+    const ny = clamp01(tipY)
+    annotations.value = annotations.value.map((item) =>
+      item.id === id && item.kind === 'callout'
+        ? { ...item, tipX: nx, tipY: ny, tipHtmlAnchor: undefined }
+        : item,
+    )
+  }
+
+  function updateCalloutBox(id: string, boxX: number, boxY: number) {
+    const nx = clamp01(boxX)
+    const ny = clamp01(boxY)
+    annotations.value = annotations.value.map((item) =>
+      item.id === id && item.kind === 'callout' ? { ...item, boxX: nx, boxY: ny } : item,
     )
   }
 
@@ -453,6 +499,10 @@ export function useAnnotationStore() {
     updateColor,
     updateTextbox,
     updateCalloutText,
+    updateStampPosition,
+    updateTextboxPosition,
+    updateCalloutTip,
+    updateCalloutBox,
     remove,
     clearSurface,
     clearAll,

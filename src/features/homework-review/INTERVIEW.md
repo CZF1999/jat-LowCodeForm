@@ -50,8 +50,8 @@ flowchart LR
 | `AnnotationKind` | `pin \| stamp \| textbox \| callout \| stroke \| underline \| highlight` | 判别联合，用 `kind` 分支 |
 | `ReviewTool` | `select \| stamp \| textbox \| callout \| highlight \| underline \| pen` | 工具与 kind 不完全一一对应（`pen`→`stroke`） |
 | `SurfaceMode` | `image \| pdf \| html` | 载体不同，交互与坐标策略不同 |
-| 归一化坐标 | `x,y ∈ [0,1]` 相对舞台/页 | 缩放后不漂，适合图片 PDF |
-| `HtmlAnchor` | `{ start, end, quote }` 文本偏移 | 划词锚点，重算矩形，适合 HTML |
+| 归一化坐标 | `x,y ∈ [0,1]` 相对 **内容框**（HTML `content-shell` / 图 PDF `page-frame`），不含 gutter | 换屏不因留白进分母而漂 |
+| `HtmlAnchor` | `{ start, end, quote }` 文本偏移 | 划词（高亮/下划线）与 pin 用；位置类标注只用相对试卷的 `x,y` |
 | `shallowRef(annotations)` | 列表整体替换，不做深响应 | 大批注时减开销 |
 | 分层渲染 | Canvas 笔画；DOM 可点批注；SVG 引线；mark-layer 划词 | 按交互形态拆，不全塞进 Canvas |
 
@@ -369,8 +369,9 @@ HTML / image / pdf **均可**单击落章；HTML 页边有 padding，落点可�
 
 #### 7) 易错点 / 取舍
 
-- 图章不强制绑 `htmlAnchor`（实现上可选字段存在于类型，落点路径未写 anchor）——位置跟舞台坐标，不跟文字回流。  
-- 与短文本分工：图章表对错，短文本表概念提醒。
+- 图章只存相对 `content-shell` 的 `x,y`（HTML/Vue 内容宽固定，见 `paperLayout.ts`），不跟文字回流。  
+- 与短文本分工：图章表对错，短文本表概念提醒。  
+- **选中工具**下可拖拽改 `x,y`（`updateStampPosition`）；其它工具仅可点选。
 
 #### 8) 面试话术
 
@@ -422,7 +423,8 @@ tool=textbox → click → addTextbox → Markers 黄底小气泡 → updateText
 #### 7) 易错点 / 取舍
 
 - `text` 与 `comment` 分离：短文本以 `text` 为准；预设对 stamp 会写 `comment`。  
-- 框内展示截断，完整内容靠侧栏。
+- 框内展示截断，完整内容靠侧栏。  
+- **选中工具**下可拖拽改 `x,y`（`updateTextboxPosition`）；其它工具仅可点选。
 
 #### 8) 面试话术
 
@@ -487,9 +489,9 @@ AnnotationCallouts：SVG 线+三角箭头 + DOM 长框
 
 #### 7) 易错点 / 取舍
 
-- 本版**不能拖拽改 tip/box**（面试主动说是范围控制）。  
+- **选中工具**下可拖 tip 手柄与长文本框，写回归一化 `tipX/Y`、`boxX/Y`；图章/短文本同理。  
 - 半截草稿不进 JSON；刷新会丢未完成引注。  
-- 线是直线，不是折线。
+- 线是直线，不是折线；尚无撤销栈。
 
 #### 8) 面试话术
 
@@ -499,8 +501,8 @@ AnnotationCallouts：SVG 线+三角箭头 + DOM 长框
 **追问：** 为什么要草稿态？  
 > 两次点击必须有中间态；虚线预览降低落框失误，Esc 可取消。
 
-**追问：** 如何扩展拖拽？  
-> 选中后对 tip/box 做 pointer drag，更新归一化坐标并重算 `layoutOne`，可加命令栈支持撤销。
+**追问：** 拖拽怎么做的？  
+> 仅 `select` 工具：`pointerdown` 选中并 capture，超过约 3px 才算拖；按舞台宽高换算归一化坐标，`updateCalloutTip/Box` 写回 Store，`layoutOne` 重算引线。图章/短文本走 Markers 同样模式。
 
 ---
 
@@ -733,7 +735,7 @@ CommentPopover @remove → store.remove
 2. **架构**：Toolbar → Surface 适配 → Store → 分层渲染 → Repository。  
 3. **坐标策略**：图片/PDF 归一化；HTML 划词文本锚点。  
 4. **深挖一个**：建议深挖 **高亮**（锚点）或 **引注**（两步态）或 **Worker**（性能）。  
-5. **边界**：无 OCR、无拖拽改位、无多人协作——Demo 把主路径打通。
+5. **边界**：无 OCR、无划词拖色块、无撤销栈、无多人协作——图章/短文本/引注已支持 select 下拖改位。
 
 ### 5.2 高频追问速查表
 
@@ -741,7 +743,7 @@ CommentPopover @remove → store.remove
 |------|------------|
 | 为何不全用 Canvas？ | 笔画适合 Canvas；可点击编辑、文本框适合 DOM；引线 SVG 方便 |
 | 为何 HTML 存 offset？ | 抗滚动/重排；展示时 Range 重算 |
-| 归一化坐标？ | `0~1` 相对页，缩放不错位 |
+| 归一化坐标？ | `0~1` 相对内容框/答卷画面，不含 gutter；HTML/Vue 内容宽固定，位置类只存 xy |
 | 为何 shallowRef？ | 大列表整体替换，避免深代理开销 |
 | Worker 做什么？ | 网格索引查询，主线程少挂 DOM |
 | pin 去哪了？ | 压测/兼容；产品客观题用 stamp |
@@ -749,10 +751,37 @@ CommentPopover @remove → store.remove
 | 引注半截怎么取消？ | Esc / 切工具 → `cancelCalloutDraft` |
 | 和低代码编辑器关系？ | 同仓库不同范式：编辑器 schema 搭建；批阅是文档标注交互 |
 
-### 5.3 生产还缺什么（诚实边界）
+### 5.3 HTML 试卷 vs Vue 试卷（同 JSON 双渲染）
+
+工具栏「试卷：Vue 试卷 / HTML 试卷」切换同一份 `sample-paper.json`：
+
+| 维度 | HTML 试卷（`renderPaperToHtml` + `v-html`） | Vue 试卷（`PaperMarkingView` + topic 组件） |
+|------|---------------------------------------------|---------------------------------------------|
+| 显示 | 字符串模板，样式靠 `:deep` | 题型组件 + 右侧题号导航，更贴近真实阅卷 |
+| 可维护 | 题型多时难维护 | 分支清晰，易加打分/折叠/附件 |
+| 批注 | DOM 稳定时 `HtmlAnchor` 好用 | 同一套 `useHtmlAnnotationStage`；组件插槽会干扰文本序列 |
+| 混合载荷 | 后端直出 HTML 很顺 | 后端 HTML 仍走 HTML Surface |
+| Demo 结论 | 适配快、协议演示够用 | 产品化阅卷 UI 更合适 |
+
+调用链：`useAnswerContent.paperMode` → `HtmlRichSurface` 或 `VuePaperSurface` → 共用批注叠层。
+
+### 5.4 跨屏坐标策略（防位置偏差）
+
+**问题**：若把 gutter/stage padding 算进归一化分母，窗口变宽时同一 `x` 相对答卷画面会漂；HTML 内容宽随视口收缩时会换行，纯 `x,y` 对不上版面。
+
+**做法**：
+
+1. **内容框归一化**：落点 / 拖拽 / 绘制一律相对 content box（`boxMetrics` + `toNorm`）；gutter 只做视觉留白。图片/PDF 叠层挂在 `page-frame` 内，宽高 = 答卷画面。  
+2. **HTML/Vue 固定内容宽**：`paperLayout.ts` 锁定 `content-shell` 宽度（标准 `794` / Vue 宽版 `980`），高度随内容，外层滚动；窄屏横滚而不挤压换行。  
+3. **位置类标注只存 `x,y`**：stamp / textbox / callout tip 不再写、不再跟 `htmlAnchor`；绘制直接用存盘坐标。  
+4. **划词**仍只靠 `HtmlAnchor`（文本序列不变时跟字）。
+
+**面试一句话**：坐标相对固定宽的试卷内容区；划词用文本偏移，图章类用归一化落点。
+
+### 5.5 生产还缺什么（诚实边界）
 
 - 图片/PDF OCR 划词  
-- 批注拖拽改位置、调整 callout tip/box  
+- 笔画整体平移、划词改选区（非拖色块）  
 - 撤销/重做命令栈  
 - 多页 PDF + 真视口虚拟列表  
 - 后端同步、权限、冲突合并（`contentHash`）  
@@ -760,7 +789,7 @@ CommentPopover @remove → store.remove
 - 笔刷样式 / 橡皮擦  
 - 无障碍与打印导出
 
-### 5.4 简历可用描述（可选粘贴）
+### 5.6 简历可用描述（可选粘贴）
 
 **80 字：**  
 基于 Vue3 实现多载体作业批阅：图章/短文本/引注/划词高亮/画笔；文本锚点与归一化坐标分流；Canvas/DOM/SVG 分层渲染；shallowRef + Worker 空间索引优化大量标注；Draft 契约可对接后端。
@@ -781,7 +810,14 @@ CommentPopover @remove → store.remove
 | [useSpatialIndex.ts](./useSpatialIndex.ts) | Worker 封装 |
 | [workers/spatialIndex.worker.ts](./workers/spatialIndex.worker.ts) | 网格索引 |
 | [components/ReviewShell.vue](./components/ReviewShell.vue) | 壳 |
-| [components/surfaces/HtmlRichSurface.vue](./components/surfaces/HtmlRichSurface.vue) | HTML |
+| [paperTypes.ts](./paperTypes.ts) / [renderPaperToHtml.ts](./renderPaperToHtml.ts) | 试卷 JSON 与 HTML 适配 |
+| [quesTypeMap.ts](./quesTypeMap.ts) | 题型 → Vue 组件 |
+| [useAnswerContent.ts](./useAnswerContent.ts) | HTML/Vue 试卷模式 |
+| [useHtmlAnnotationStage.ts](./useHtmlAnnotationStage.ts) | HTML/Vue 共用批注舞台 |
+| [components/PaperMarkingView.vue](./components/PaperMarkingView.vue) | Vue 试卷壳 |
+| [components/topic/*](./components/topic/) | 题型只读组件 |
+| [components/surfaces/HtmlRichSurface.vue](./components/surfaces/HtmlRichSurface.vue) | HTML 试卷 + 批注 |
+| [components/surfaces/VuePaperSurface.vue](./components/surfaces/VuePaperSurface.vue) | Vue 试卷 + 批注 |
 | [components/surfaces/ImagePdfSurface.vue](./components/surfaces/ImagePdfSurface.vue) | 图/PDF |
 | [components/layers/AnnotationCanvas.vue](./components/layers/AnnotationCanvas.vue) | 笔画 |
 | [components/layers/AnnotationPins.vue](./components/layers/AnnotationPins.vue) | 钉 |

@@ -96,15 +96,27 @@ export function caretOffsetFromPoint(root: HTMLElement, clientX: number, clientY
   return null
 }
 
+/** Content-box metrics: same width/height used for normalize and paint. */
+export function boxMetrics(box: HTMLElement): {
+  rect: DOMRect
+  width: number
+  height: number
+} {
+  const rect = box.getBoundingClientRect()
+  return {
+    rect,
+    width: Math.max(box.clientWidth, 1),
+    height: Math.max(box.scrollHeight, box.clientHeight, 1),
+  }
+}
+
 export function stageRelativeFromClientRect(
-  stage: HTMLElement,
+  box: HTMLElement,
   rect: DOMRect,
 ): { x: number; y: number; left: number; top: number; width: number; height: number } {
-  const stageRect = stage.getBoundingClientRect()
-  const width = Math.max(stage.clientWidth, 1)
-  const height = Math.max(stage.scrollHeight, stage.clientHeight, 1)
-  const left = rect.left - stageRect.left
-  const top = rect.top - stageRect.top
+  const { rect: boxRect, width, height } = boxMetrics(box)
+  const left = rect.left - boxRect.left
+  const top = rect.top - boxRect.top
   return {
     left,
     top,
@@ -113,4 +125,22 @@ export function stageRelativeFromClientRect(
     x: (left + rect.width / 2) / width,
     y: (top + rect.height / 2) / height,
   }
+}
+
+/** Snapshot a short text anchor at a pointer for position-based HTML annotations. */
+export function anchorAtPoint(
+  root: HTMLElement,
+  clientX: number,
+  clientY: number,
+): HtmlAnchor | null {
+  const offset = caretOffsetFromPoint(root, clientX, clientY)
+  if (offset == null) return null
+  const end = offset + 1
+  const range = offsetToRange(root, offset, end)
+  if (!range) {
+    return { start: offset, end: Math.max(offset + 1, offset), quote: '' }
+  }
+  const anchor = rangeToOffsets(root, range)
+  if (anchor) return anchor
+  return { start: offset, end: end, quote: range.toString().slice(0, 40) }
 }

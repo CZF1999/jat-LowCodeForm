@@ -1,0 +1,289 @@
+{
+  "bmmc": "湖南省长沙市公an局",
+  "ksmc": "cdcdcdcdc",
+  "ryjh": "11000000",
+  "ryxm": "张三总",
+  "sc": 3,
+  "sjid": 79,
+  "sjzf": 7.0,
+  "stjkssj": "",
+  "strtkssj": "",
+  "tmldzfm": 0,
+  "yjtxxx": [
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "dxt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 35,
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "89",
+          "tmid": 152,
+          "tmlxdm": "dxt",
+          "xztxx": [
+            { "sfzq": "0", "tmid": 152, "xxdm": "A", "xxnr": "1" },
+            { "sfzq": "1", "tmid": 152, "xxdm": "B", "xxnr": "2" },
+            { "sfzq": "0", "tmid": 152, "xxdm": "C", "xxnr": "3" }
+          ],
+          "zgtda": "未作答"
+        }
+      ]
+    },
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "duoxt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 2,
+          "kgtda": "未作答",
+          "tkid": 3,
+          "tm": "通常洒报有哪些类型？",
+          "tmid": 454,
+          "tmlxdm": "duoxt",
+          "xztxx": [
+            { "sfzq": "1", "tmid": 454, "xxdm": "A", "xxnr": "模型运行完成洒报" },
+            { "sfzq": "1", "tmid": 454, "xxdm": "B", "xxnr": "报告生成完成洒报" },
+            { "sfzq": "1", "tmid": 454, "xxdm": "C", "xxnr": "数据聚集完成洒报" },
+            { "sfzq": "1", "tmid": 454, "xxdm": "D", "xxnr": "发现团伙完成洒报" }
+          ],
+          "zgtda": "未作答"
+        }
+      ]
+    },
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "bdxt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "1",
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "123",
+          "tmid": 16,
+          "tmlxdm": "bdxt",
+          "xztxx": [
+            { "sfzq": "0", "tmid": 16, "xxdm": "A", "xxnr": "3" },
+            { "sfzq": "1", "tmid": 16, "xxdm": "B", "xxnr": "35" },
+            { "sfzq": "0", "tmid": 16, "xxdm": "C", "xxnr": "4" }
+          ],
+          "zgtda": "未作答"
+        }
+      ]
+    },
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "pdt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "2",
+          "kgtda": "未作答",
+          "pdtxx": [{ "sfzq": "1", "tmid": 12 }],
+          "tkid": 31,
+          "tm": "1123123",
+          "tmid": 12,
+          "tmlxdm": "pdt",
+          "zgtda": "未作答"
+        }
+      ]
+    },
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "tkt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 35,
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tktxx": [
+            { "sx": 1, "tmid": 9, "zqda": "1" },
+            { "sx": 2, "tmid": 9, "zqda": "2" }
+          ],
+          "tm": "测试北京（1）（2）",
+          "tmid": 9,
+          "tmlxdm": "tkt",
+          "zgtda": "未作答"
+        }
+      ]
+    },
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "jdt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 35,
+          "jdtxx": [{ "ckda": "123123", "tmid": 235 }],
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "123123",
+          "tmid": 235,
+          "tmlxdm": "jdt",
+          "zgtda": "未作答"
+        }
+      ]
+    },
+    {
+      "dgtmlxdf": 0,
+      "dgtmlxzf": 1.0,
+      "fs": 1.0,
+      "tmlxdm": "alt",
+      "tmsl": 1,
+      "tmxx": [
+        {
+          "df": 0,
+          "flid": 35,
+          "jb": "1",
+          "kgtda": "未作答",
+          "tkid": 31,
+          "tm": "单选题",
+          "tmid": 190,
+          "tmlxdm": "alt",
+          "zgtda": "未作答",
+          "ztmList": [
+            {
+              "df": 0,
+              "flid": 35,
+              "jdtxx": [{ "ckda": "sdfdfsdf", "tmid": 191 }],
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "erwe",
+              "tmid": 191,
+              "tmjx": "",
+              "tmlxdm": "jdt",
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "123",
+              "tmid": 192,
+              "tmjx": "",
+              "tmlxdm": "bdxt",
+              "xztxx": [
+                { "sfzq": "1", "tmid": 192, "xxdm": "A", "xxnr": "1" },
+                { "sfzq": "1", "tmid": 192, "xxdm": "B", "xxnr": "2" },
+                { "sfzq": "0", "tmid": 192, "xxdm": "C", "xxnr": "3" }
+              ],
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tktxx": [{ "sx": 1, "tmid": 193, "zqda": "123123" }],
+              "tm": "1232()",
+              "tmid": 193,
+              "tmjx": "",
+              "tmlxdm": "tkt",
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "pdtxx": [{ "sfzq": "1", "tmid": 194 }],
+              "tkid": 31,
+              "tm": "234",
+              "tmid": 194,
+              "tmjx": "",
+              "tmlxdm": "pdt",
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "123",
+              "tmid": 195,
+              "tmjx": "",
+              "tmlxdm": "dxt",
+              "xztxx": [
+                { "sfzq": "0", "tmid": 195, "xxdm": "A", "xxnr": "1" },
+                { "sfzq": "1", "tmid": 195, "xxdm": "B", "xxnr": "2" },
+                { "sfzq": "0", "tmid": 195, "xxdm": "C", "xxnr": "3" }
+              ],
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "2",
+              "tmid": 196,
+              "tmjx": "",
+              "tmlxdm": "duoxt",
+              "xztxx": [
+                { "sfzq": "0", "tmid": 196, "xxdm": "A", "xxnr": "1" },
+                { "sfzq": "1", "tmid": 196, "xxdm": "B", "xxnr": "2" },
+                { "sfzq": "1", "tmid": 196, "xxdm": "C", "xxnr": "3" }
+              ],
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "312",
+              "tmid": 197,
+              "tmlxdm": "dxt",
+              "xztxx": [
+                { "sfzq": "0", "tmid": 197, "xxdm": "A", "xxnr": "1" },
+                { "sfzq": "1", "tmid": 197, "xxdm": "B", "xxnr": "2" },
+                { "sfzq": "0", "tmid": 197, "xxdm": "C", "xxnr": "3" }
+              ],
+              "zgtda": "未作答"
+            },
+            {
+              "df": 0,
+              "flid": 35,
+              "kgtda": "未作答",
+              "tkid": 31,
+              "tm": "123",
+              "tmid": 198,
+              "tmjx": "",
+              "tmlxdm": "dxt",
+              "xztxx": [
+                { "sfzq": "0", "tmid": 198, "xxdm": "A", "xxnr": "1" },
+                { "sfzq": "1", "tmid": 198, "xxdm": "B", "xxnr": "2" },
+                { "sfzq": "0", "tmid": 198, "xxdm": "C", "xxnr": "3" }
+              ],
+              "zgtda": "未作答"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 import type { AnnotationDraft } from './types'
 
 export const DEMO_HOMEWORK_ID = 'demo-homework-1'
-export const DEMO_CONTENT_HASH = 'sample-answer-html-v1'
+/** Default demo uses JSON paper → HTML; bump when mock paper structure changes. */
+export const DEMO_CONTENT_HASH = 'sample-paper-json-v1'
 
 function storageKey(homeworkId: string): string {
   return `homework-review:${homeworkId}`

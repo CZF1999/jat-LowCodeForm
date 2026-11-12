@@ -61,7 +61,7 @@ export interface PinAnnotation extends AnnotationBase {
 export interface StampAnnotation extends AnnotationBase {
   kind: 'stamp'
   symbol: StampSymbol
-  /** normalized 0~1 relative to stage/page */
+  /** normalized 0~1 relative to content box / page frame */
   x: number
   y: number
   htmlAnchor?: HtmlAnchor
@@ -70,9 +70,11 @@ export interface StampAnnotation extends AnnotationBase {
 export interface TextboxAnnotation extends AnnotationBase {
   kind: 'textbox'
   text: string
-  /** normalized 0~1 relative to stage/page */
+  /** normalized 0~1 relative to content box / page frame */
   x: number
   y: number
+  /** optional text anchor so position reflows with HTML content */
+  htmlAnchor?: HtmlAnchor
 }
 
 /** Margin callout: tip points at issue, box holds long feedback, line connects them */
@@ -85,6 +87,8 @@ export interface CalloutAnnotation extends AnnotationBase {
   text: string
   /** pixel width of the long text box; default ~200 */
   boxWidth?: number
+  /** optional text anchor for tip (box stays content-normalized) */
+  tipHtmlAnchor?: HtmlAnchor
 }
 
 export interface StrokeAnnotation extends AnnotationBase {
@@ -116,6 +120,7 @@ export type Annotation =
 export interface CalloutDraftTip {
   x: number
   y: number
+  htmlAnchor?: HtmlAnchor
 }
 
 export interface ViewportRect {

@@ -14,11 +14,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker
 
 const store = useAnnotationStore()
 const stageRef = ref<HTMLElement | null>(null)
+const pageFrameRef = ref<HTMLElement | null>(null)
 const baseCanvasRef = ref<HTMLCanvasElement | null>(null)
 const imgRef = ref<HTMLImageElement | null>(null)
-const stageSize = ref({ width: 720, height: 960 })
+/** Page content size (excludes gutter). Annotations normalize to this box. */
+const pageSize = ref({ width: 720, height: 960 })
 const drawing = ref(false)
 const draftPoints = ref<Array<{ x: number; y: number }>>([])
+
+const GUTTER = 64
+
+const stageOuter = computed(() => ({
+  width: pageSize.value.width + GUTTER * 2,
+  height: pageSize.value.height,
+}))
 
 const pagePins = computed(() =>
   store.pins.value.filter(
@@ -64,25 +73,33 @@ watch([pagePins, () => store.selectedId.value], () => {
   void refreshVisible()
 })
 
-function toNorm(event: PointerEvent) {
-  const rect = stageRef.value?.getBoundingClientRect()
-  if (!rect) return { x: 0, y: 0 }
-  return {
-    x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-    y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
-  }
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n))
 }
 
-const GUTTER = 64
+/** Normalize against page-frame (content), not outer stage with gutters. */
+function toNorm(event: PointerEvent) {
+  const box = pageFrameRef.value
+  if (!box) return { x: 0, y: 0 }
+  const rect = box.getBoundingClientRect()
+  const width = Math.max(pageSize.value.width, box.clientWidth, 1)
+  const height = Math.max(pageSize.value.height, box.clientHeight, 1)
+  return {
+    x: clamp01((event.clientX - rect.left) / width),
+    y: clamp01((event.clientY - rect.top) / height),
+  }
+}
 
 function measureFromImage() {
   const img = imgRef.value
   if (!img) return
-  const maxW = Math.min(820, (stageRef.value?.parentElement?.clientWidth || 820) - GUTTER * 2)
+  const parentW = stageRef.value?.parentElement?.clientWidth || 820
+  const maxW = Math.min(820, parentW - GUTTER * 2)
   const ratio = img.naturalHeight / img.naturalWidth || 4 / 3
-  stageSize.value = {
-    width: Math.max(320, maxW) + GUTTER * 2,
-    height: Math.round(Math.max(320, maxW) * ratio),
+  const w = Math.max(320, maxW)
+  pageSize.value = {
+    width: w,
+    height: Math.round(w * ratio),
   }
 }
 
@@ -98,8 +115,8 @@ async function renderPdfPage() {
   if (!ctx) return
   canvas.width = viewport.width
   canvas.height = viewport.height
-  stageSize.value = {
-    width: viewport.width + GUTTER * 2,
+  pageSize.value = {
+    width: viewport.width,
     height: viewport.height,
   }
   await page.render({ canvasContext: ctx, viewport }).promise
@@ -189,13 +206,19 @@ function onPointerUp(event: PointerEvent) {
   draftPoints.value = []
 }
 
+function onWindowResize() {
+  if (store.surface.value === 'image') measureFromImage()
+}
+
 onMounted(() => {
   void setupSurface()
   window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('resize', onWindowResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('resize', onWindowResize)
 })
 
 watch(() => store.surface.value, () => {
@@ -209,13 +232,21 @@ watch(() => store.surface.value, () => {
       ref="stageRef"
       class="stage"
       :class="`tool-${store.tool.value}`"
-      :style="{ width: `${stageSize.width}px`, height: `${stageSize.height}px` }"
+      :style="{ width: `${stageOuter.width}px`, height: `${stageOuter.height}px` }"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
     >
-      <div class="page-frame" :style="{ left: `${GUTTER}px`, right: `${GUTTER}px` }">
+      <div
+        ref="pageFrameRef"
+        class="page-frame"
+        :style="{
+          left: `${GUTTER}px`,
+          width: `${pageSize.width}px`,
+          height: `${pageSize.height}px`,
+        }"
+      >
         <img
           v-show="store.surface.value === 'image'"
           ref="imgRef"
@@ -230,39 +261,47 @@ watch(() => store.surface.value, () => {
           ref="baseCanvasRef"
           class="base"
         />
-      </div>
 
-      <AnnotationCanvas
-        :width="stageSize.width"
-        :height="stageSize.height"
-        :annotations="pageAnnotations"
-        :selected-id="store.selectedId.value"
-      />
-      <AnnotationPins
-        :pins="pagePins"
-        :visible-ids="visibleIds"
-        :selected-id="store.selectedId.value"
-        :width="stageSize.width"
-        :height="stageSize.height"
-        @select="store.select"
-      />
-      <AnnotationMarkers
-        :stamps="pageStamps"
-        :textboxes="pageTextboxes"
-        :selected-id="store.selectedId.value"
-        :width="stageSize.width"
-        :height="stageSize.height"
-        @select="store.select"
-      />
-      <AnnotationCallouts
-        :callouts="pageCallouts"
-        :selected-id="store.selectedId.value"
-        :width="stageSize.width"
-        :height="stageSize.height"
-        :draft-tip="store.calloutDraftTip.value"
-        :draft-preview="store.calloutPreview.value"
-        @select="store.select"
-      />
+        <div class="overlay-root">
+          <AnnotationCanvas
+            :width="pageSize.width"
+            :height="pageSize.height"
+            :annotations="pageAnnotations"
+            :selected-id="store.selectedId.value"
+          />
+          <AnnotationPins
+            :pins="pagePins"
+            :visible-ids="visibleIds"
+            :selected-id="store.selectedId.value"
+            :width="pageSize.width"
+            :height="pageSize.height"
+            @select="store.select"
+          />
+          <AnnotationMarkers
+            :stamps="pageStamps"
+            :textboxes="pageTextboxes"
+            :selected-id="store.selectedId.value"
+            :width="pageSize.width"
+            :height="pageSize.height"
+            :tool="store.tool.value"
+            @select="store.select"
+            @move-stamp="store.updateStampPosition"
+            @move-textbox="store.updateTextboxPosition"
+          />
+          <AnnotationCallouts
+            :callouts="pageCallouts"
+            :selected-id="store.selectedId.value"
+            :width="pageSize.width"
+            :height="pageSize.height"
+            :tool="store.tool.value"
+            :draft-tip="store.calloutDraftTip.value"
+            :draft-preview="store.calloutPreview.value"
+            @select="store.select"
+            @move-tip="store.updateCalloutTip"
+            @move-box="store.updateCalloutBox"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -282,14 +321,30 @@ watch(() => store.surface.value, () => {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
   touch-action: none;
   user-select: none;
+  overflow: visible;
 }
 
 .page-frame {
   position: absolute;
   top: 0;
-  bottom: 0;
   background: #fff;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.overlay-root {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.overlay-root :deep(.stamp),
+.overlay-root :deep(.textbox),
+.overlay-root :deep(.callout-box),
+.overlay-root :deep(.tip-handle),
+.overlay-root :deep(.pin) {
+  pointer-events: auto;
 }
 
 .stage.tool-pen,

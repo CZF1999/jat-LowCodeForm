@@ -1,26 +1,34 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { CalloutAnnotation, CalloutDraftTip } from '../../types'
+import { computed, onUnmounted, ref } from 'vue'
+import type { CalloutAnnotation, CalloutDraftTip, ReviewTool } from '../../types'
 
 const props = defineProps<{
   callouts: CalloutAnnotation[]
   selectedId: string | null
   width: number
   height: number
+  tool: ReviewTool
   draftTip?: CalloutDraftTip | null
   draftPreview?: CalloutDraftTip | null
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
+  'move-tip': [id: string, tipX: number, tipY: number]
+  'move-box': [id: string, boxX: number, boxY: number]
 }>()
 
 const DEFAULT_BOX_WIDTH = 200
+const DRAG_THRESHOLD_PX = 3
 
 interface CalloutLayout {
   id: string
   tipX: number
   tipY: number
+  tipXNorm: number
+  tipYNorm: number
+  boxXNorm: number
+  boxYNorm: number
   boxLeft: number
   boxTop: number
   boxWidth: number
@@ -30,6 +38,28 @@ interface CalloutLayout {
   text: string
   color: string
   selected: boolean
+}
+
+type DragTarget = 'tip' | 'box'
+
+interface DragState {
+  target: DragTarget
+  id: string
+  pointerId: number
+  startClientX: number
+  startClientY: number
+  originX: number
+  originY: number
+  moved: boolean
+}
+
+const drag = ref<DragState | null>(null)
+const grabbingKey = ref<string | null>(null)
+
+const canDrag = computed(() => props.tool === 'select')
+
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n))
 }
 
 function layoutOne(
@@ -51,7 +81,6 @@ function layoutOne(
   const boxCenterX = boxLeft + boxWidth / 2
   const boxCenterY = boxTop + 24
 
-  // Attach line to the box edge nearest the tip
   let lineEndX = boxLeft
   let lineEndY = boxCenterY
   if (tipX > boxLeft + boxWidth) {
@@ -67,6 +96,10 @@ function layoutOne(
     id,
     tipX,
     tipY,
+    tipXNorm,
+    tipYNorm,
+    boxXNorm,
+    boxYNorm,
     boxLeft,
     boxTop,
     boxWidth,
@@ -79,7 +112,6 @@ function layoutOne(
   }
 }
 
-/** Small triangle at tip, pointing toward tip from line start */
 function arrowHead(fromX: number, fromY: number, toX: number, toY: number): string {
   const dx = toX - fromX
   const dy = toY - fromY
@@ -124,6 +156,72 @@ const draftLayout = computed(() => {
     false,
   )
 })
+
+function detachWindowDrag() {
+  window.removeEventListener('pointermove', onPointerMove)
+  window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('pointercancel', onPointerUp)
+}
+
+onUnmounted(() => {
+  detachWindowDrag()
+  drag.value = null
+  grabbingKey.value = null
+})
+
+function onPointerDown(
+  event: PointerEvent,
+  target: DragTarget,
+  item: CalloutLayout,
+) {
+  event.stopPropagation()
+  emit('select', item.id)
+  if (!canDrag.value) return
+  event.preventDefault()
+  ;(event.currentTarget as HTMLElement | null)?.setPointerCapture(event.pointerId)
+  drag.value = {
+    target,
+    id: item.id,
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    originX: target === 'tip' ? item.tipXNorm : item.boxXNorm,
+    originY: target === 'tip' ? item.tipYNorm : item.boxYNorm,
+    moved: false,
+  }
+  grabbingKey.value = `${target}:${item.id}`
+  window.addEventListener('pointermove', onPointerMove)
+  window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerUp)
+}
+
+function onPointerMove(event: PointerEvent) {
+  const state = drag.value
+  if (!state || event.pointerId !== state.pointerId) return
+  const dx = event.clientX - state.startClientX
+  const dy = event.clientY - state.startClientY
+  if (!state.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+  state.moved = true
+  const w = Math.max(props.width, 1)
+  const h = Math.max(props.height, 1)
+  const x = clamp01(state.originX + dx / w)
+  const y = clamp01(state.originY + dy / h)
+  if (state.target === 'tip') emit('move-tip', state.id, x, y)
+  else emit('move-box', state.id, x, y)
+}
+
+function onPointerUp(event: PointerEvent) {
+  const state = drag.value
+  if (!state || event.pointerId !== state.pointerId) return
+  try {
+    ;(event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId)
+  } catch {
+    /* already released */
+  }
+  drag.value = null
+  grabbingKey.value = null
+  detachWindowDrag()
+}
 </script>
 
 <template>
@@ -164,16 +262,47 @@ const draftLayout = computed(() => {
 
     <button
       v-for="item in layouts"
+      :key="`tip_${item.id}`"
+      type="button"
+      class="tip-handle"
+      :class="{
+        'is-selected': item.selected,
+        'is-draggable': canDrag,
+        'is-grabbing': grabbingKey === `tip:${item.id}`,
+      }"
+      :style="{
+        left: `${item.tipX}px`,
+        top: `${item.tipY}px`,
+        background: item.color,
+      }"
+      :title="canDrag ? '拖动尖点' : '选中引注'"
+      @pointerdown="onPointerDown($event, 'tip', item)"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
+      @click.stop="emit('select', item.id)"
+    />
+
+    <button
+      v-for="item in layouts"
       :key="item.id"
       type="button"
       class="callout-box"
-      :class="{ 'is-selected': item.selected }"
+      :class="{
+        'is-selected': item.selected,
+        'is-draggable': canDrag,
+        'is-grabbing': grabbingKey === `box:${item.id}`,
+      }"
       :style="{
         left: `${item.boxLeft}px`,
         top: `${item.boxTop}px`,
         width: `${item.boxWidth}px`,
         borderColor: item.color,
       }"
+      @pointerdown="onPointerDown($event, 'box', item)"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
       @click.stop="emit('select', item.id)"
     >
       {{ item.text || '写改进意见…' }}
@@ -193,6 +322,34 @@ const draftLayout = computed(() => {
   position: absolute;
   inset: 0;
   overflow: visible;
+  /* Full-size SVG would otherwise steal hits from stamps/textboxes under this layer. */
+  pointer-events: none;
+}
+
+.tip-handle {
+  pointer-events: auto;
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tip-handle.is-draggable {
+  cursor: grab;
+}
+
+.tip-handle.is-grabbing {
+  cursor: grabbing;
+}
+
+.tip-handle.is-selected {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.45), 0 1px 4px rgba(15, 23, 42, 0.35);
 }
 
 .callout-box {
@@ -215,6 +372,15 @@ const draftLayout = computed(() => {
   word-break: break-word;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  touch-action: none;
+}
+
+.callout-box.is-draggable {
+  cursor: grab;
+}
+
+.callout-box.is-grabbing {
+  cursor: grabbing;
 }
 
 .callout-box.is-selected {
