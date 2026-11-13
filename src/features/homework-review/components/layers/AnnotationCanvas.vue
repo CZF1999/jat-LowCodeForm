@@ -3,12 +3,21 @@
 import { onMounted, ref, watch } from 'vue'
 import type { Annotation, PinAnnotation, StrokeAnnotation } from '../../types'
 
-const props = defineProps<{
-  width: number
-  height: number
-  annotations: Annotation[]
-  selectedId: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    width: number
+    height: number
+    annotations: Annotation[]
+    selectedId: string | null
+    /** In-progress pen stroke (normalized 0~1); drawn as solid ink while dragging. */
+    draftPoints?: Array<{ x: number; y: number }>
+    draftColor?: string
+  }>(),
+  {
+    draftPoints: () => [],
+    draftColor: '#ef4444',
+  },
+)
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
@@ -29,6 +38,17 @@ function draw() {
   for (const item of props.annotations) {
     if (item.kind === 'stroke') drawStroke(ctx, item)
     else if (item.kind === 'pin') drawPin(ctx, item)
+  }
+
+  if (props.draftPoints.length >= 2) {
+    drawStroke(ctx, {
+      id: '__draft__',
+      kind: 'stroke',
+      surface: 'html',
+      createdAt: 0,
+      points: props.draftPoints,
+      color: props.draftColor,
+    })
   }
 }
 
@@ -65,7 +85,11 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: StrokeAnnotation) {
 }
 
 onMounted(draw)
-watch(() => [props.annotations, props.width, props.height, props.selectedId], draw, { deep: false })
+watch(
+  () => [props.annotations, props.width, props.height, props.selectedId, props.draftPoints, props.draftColor],
+  draw,
+  { deep: false },
+)
 </script>
 
 <template>

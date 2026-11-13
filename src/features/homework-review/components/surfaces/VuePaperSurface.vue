@@ -45,6 +45,7 @@ const {
   previewRects,
   visibleIds,
   canvasAnnotations,
+  draftPoints,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -159,6 +160,7 @@ defineExpose<AnnotatedSurfaceExportApi>({
             :height="size.height"
             :annotations="canvasAnnotations"
             :selected-id="store.selectedId.value"
+            :draft-points="draftPoints"
           />
 
           <AnnotationPins

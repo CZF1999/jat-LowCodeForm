@@ -274,7 +274,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
       const root = contentRef.value
       if (!root) return
       const offset = caretOffsetFromPoint(root, event.clientX, event.clientY)
-      console.log('offset', offset)
+      console.log('offset', root, event.clientX, event.clientY, offset)
       if (offset == null) return
       drawingRange.value = true
       draftStart.value = offset
@@ -290,6 +290,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
       store.updateCalloutPreview(toNorm(event))
     }
     if (drawingStroke.value && store.tool.value === 'pen') {
+      console.log('draftPoints', draftPoints.value, toNorm(event))
       draftPoints.value = [...draftPoints.value, toNorm(event)]
       return
     }
@@ -425,6 +426,7 @@ export function useHtmlAnnotationStage(extraWatchSources: Array<() => unknown> =
     previewRects,
     visibleIds,
     canvasAnnotations,
+    draftPoints,
     onPointerDown,
     onPointerMove,
     onPointerUp,

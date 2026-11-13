@@ -300,6 +300,7 @@ defineExpose({
             :height="pageSize.height"
             :annotations="pageAnnotations"
             :selected-id="store.selectedId.value"
+            :draft-points="draftPoints"
           />
           <AnnotationPins
             :pins="pagePins"

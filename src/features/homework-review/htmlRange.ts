@@ -89,6 +89,7 @@ export function caretOffsetFromPoint(root: HTMLElement, clientX: number, clientY
   if (!root.contains(node)) return null
 
   const nodes = textNodes(root)
+  console.log(nodes, node, root, offset)
   let cursor = 0
   for (const text of nodes) {
     if (text === node) return cursor + offset
@@ -165,6 +166,7 @@ export function clientRectsForRange(root: HTMLElement, range: Range): DOMRect[] 
       if (rect.width <= 0 || rect.height <= 0) continue
       out.push(rect)
     }
+    console.log(out)
   }
 
   return filterAnomalousFullWidthRects(out, root)
