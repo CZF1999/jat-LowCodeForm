@@ -7,7 +7,7 @@ import ReviewShell from '../features/homework-review/components/ReviewShell.vue'
   <div class="page">
     <div class="nav">
       <RouterLink to="/">← 返回低代码编辑器</RouterLink>
-      <span>作业批阅 Demo · Canvas/DOM 分层 + shallowRef + Worker</span>
+      <span>作业批阅 Demo </span>
     </div>
     <ReviewShell />
   </div>

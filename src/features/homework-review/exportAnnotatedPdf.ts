@@ -61,41 +61,59 @@ export interface VerticalSpan {
   bottom: number
 }
 
-const PROTECTED_SELECTORS = [
-  '.callout-box',
-  '.tip-handle',
-  '.stamp',
-  '.textbox',
-  '.pin',
-  '.highlight',
-  '.underline',
-]
+/** Skip text inside annotation chrome / overlay when collecting paper text lines. */
+const SKIP_TEXT_CLOSEST =
+  '.callout-box, .textbox, .stamp, .tip-handle, .pin, .mark-layer, .callout-layer, .marker-layer'
 
-const PAD_PX = 4
+/** Keep 0 so adjacent ink lines stay separable for page breaks. */
+const TEXT_LINE_PAD_PX = 0
 const A4_WIDTH_MM = 210
 const A4_HEIGHT_MM = 297
 const PAGE_MARGIN_MM = 8
 
-/** Collect vertical spans of annotation chrome relative to the stage element (CSS px). */
-export function collectProtectedSpans(stage: HTMLElement): VerticalSpan[] {
+/**
+ * Collect visual text-line boxes from paper content (CSS px, relative to stage).
+ * Uses Range.getClientRects so wrapped paragraphs yield one span per ink line —
+ * page cuts can land between lines instead of through mid-glyph.
+ */
+export function collectTextLineSpans(
+  contentRoot: HTMLElement,
+  stage: HTMLElement,
+): VerticalSpan[] {
   const stageRect = stage.getBoundingClientRect()
   const spans: VerticalSpan[] = []
+  const walker = document.createTreeWalker(contentRoot, NodeFilter.SHOW_TEXT)
+  let current = walker.nextNode()
 
-  for (const selector of PROTECTED_SELECTORS) {
-    stage.querySelectorAll(selector).forEach((node) => {
-      const el = node as HTMLElement
-      const r = el.getBoundingClientRect()
-      if (r.height <= 0 || r.width <= 0) return
+  while (current) {
+    const text = current as Text
+    const raw = text.data
+    if (!raw || !raw.trim()) {
+      current = walker.nextNode()
+      continue
+    }
+    const parent = text.parentElement
+    if (parent?.closest(SKIP_TEXT_CLOSEST)) {
+      current = walker.nextNode()
+      continue
+    }
+
+    const range = document.createRange()
+    range.selectNodeContents(text)
+    for (const rect of Array.from(range.getClientRects())) {
+      if (rect.width <= 0 || rect.height <= 0) continue
       spans.push({
-        top: r.top - stageRect.top - PAD_PX,
-        bottom: r.bottom - stageRect.top + PAD_PX,
+        top: rect.top - stageRect.top - TEXT_LINE_PAD_PX,
+        bottom: rect.bottom - stageRect.top + TEXT_LINE_PAD_PX,
       })
-    })
+    }
+    current = walker.nextNode()
   }
 
   return mergeSpans(spans)
 }
 
+/** Merge only strictly overlapping ranges; touching endpoints stay separate for cut gaps. */
 export function mergeSpans(spans: VerticalSpan[]): VerticalSpan[] {
   if (spans.length === 0) return []
   const sorted = spans
@@ -109,7 +127,7 @@ export function mergeSpans(spans: VerticalSpan[]): VerticalSpan[] {
   for (let i = 1; i < sorted.length; i++) {
     const cur = sorted[i]
     const last = out[out.length - 1]
-    if (cur.top <= last.bottom) {
+    if (cur.top < last.bottom) {
       last.bottom = Math.max(last.bottom, cur.bottom)
     } else {
       out.push({ ...cur })
@@ -341,7 +359,10 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
   try {
     // Spans are relative to stage; pad shifts stage inside wrap — adjust Y by pad.top.
     const padTop = Number.parseFloat(wrap.style.paddingTop || '0') || 0
-    const protectedSpans = collectProtectedSpans(root).map((s) => ({
+    const contentWidthMm = A4_WIDTH_MM - PAGE_MARGIN_MM * 2
+    const contentHeightMm = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2
+    const textRoot = contentRoot ?? root
+    const protectedSpans = collectTextLineSpans(textRoot, root).map((s) => ({
       top: s.top + padTop,
       bottom: s.bottom + padTop,
     }))
@@ -359,12 +380,8 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
 
     const cssWidth = Math.max(wrap.scrollWidth, wrap.clientWidth, 1)
     const cssToImageScale = canvas.width / cssWidth
-
-    const contentWidthMm = A4_WIDTH_MM - PAGE_MARGIN_MM * 2
-    const contentHeightMm = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2
     const mmPerCssPx = contentWidthMm / cssWidth
-    const maxSliceCssPx = contentHeightMm / mmPerCssPx
-    const maxSliceImgPx = maxSliceCssPx * cssToImageScale
+    const maxSliceImgPx = (contentHeightMm / mmPerCssPx) * cssToImageScale
 
     const sliceEnds = computeSliceEnds(
       canvas.height,

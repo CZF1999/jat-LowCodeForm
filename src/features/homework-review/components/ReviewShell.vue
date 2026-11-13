@@ -185,8 +185,8 @@ function onTogglePaperMode() {
     <header class="toolbar">
       <div class="group">
         <span class="label">载体</span>
-        <button type="button" :class="{ active: store.surface.value === 'image' }" @click="onSurface('image')">图片</button>
-        <button type="button" :class="{ active: store.surface.value === 'pdf' }" @click="onSurface('pdf')">PDF</button>
+        <!-- <button type="button" :class="{ active: store.surface.value === 'image' }" @click="onSurface('image')">图片</button>
+        <button type="button" :class="{ active: store.surface.value === 'pdf' }" @click="onSurface('pdf')">PDF</button> -->
         <button type="button" :class="{ active: store.surface.value === 'html' }" @click="onSurface('html')">HTML</button>
       </div>
       <div class="group">
@@ -246,7 +246,7 @@ function onTogglePaperMode() {
         <button type="button" :class="{ active: store.tool.value === 'pen' }" @click="onTool('pen')">画笔</button>
       </div>
       <div class="group">
-        <button
+        <!-- <button
           v-if="store.surface.value === 'html'"
           type="button"
           :class="{ active: answerContent.paperMode.value === 'vue' }"
@@ -254,8 +254,8 @@ function onTogglePaperMode() {
           @click="onTogglePaperMode"
         >
           试卷：{{ answerContent.sourceLabel.value }}
-        </button>
-        <button type="button" @click="store.generateStressPins(2000)">生成 2000 钉</button>
+        </button> -->
+        <!-- <button type="button" @click="store.generateStressPins(2000)">生成 2000 钉</button> -->
         <button type="button" @click="store.clearSurface()">清空当前载体</button>
         <button type="button" class="primary" @click="saveDraft">保存</button>
         <button type="button" @click="reloadDraft">重新加载</button>

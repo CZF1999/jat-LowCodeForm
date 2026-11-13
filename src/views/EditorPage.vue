@@ -4,7 +4,7 @@
     <header class="toolbar">
       <div class="toolbar-left">
         <h1>低代码编辑器</h1>
-        <!-- <RouterLink class="homework-link" to="/homework-review">作业批阅 Demo</RouterLink> -->
+        <RouterLink class="homework-link" to="/homework-review">作业批阅 Demo</RouterLink>
       </div>
       <div class="toolbar-right">
         <el-button type="primary" @click="showPreview = true">
