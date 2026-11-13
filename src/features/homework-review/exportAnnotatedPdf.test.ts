@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  collectAtomicBlockSpans,
+  collectProtectedSpans,
   collectTextLineSpans,
   computeSliceEnds,
   mergeSpans,
+  packPageEnds,
 } from './exportAnnotatedPdf'
 
 describe('mergeSpans', () => {
@@ -35,25 +38,59 @@ describe('computeSliceEnds', () => {
   })
 
   it('cuts above a text line when ideal cut falls inside the line box', () => {
-    // Ideal cut 900 lands inside the line [880, 920] → move cut to line top.
     const ends = computeSliceEnds(2000, 900, [{ top: 880, bottom: 920 }], 1)
     expect(ends[0]).toBe(880)
     expect(ends[ends.length - 1]).toBe(2000)
   })
 
-  it('can cut in the gap between adjacent text lines', () => {
+  it('maps protected Y with the provided scale (callers pass scaleY)', () => {
+    const ends = computeSliceEnds(2000, 900, [{ top: 440, bottom: 460 }], 2)
+    expect(ends[0]).toBe(880)
+  })
+
+  it('cuts above an option-sized box instead of slicing through its border', () => {
+    // Option box [850, 920]; ideal 900 lands inside → cut at box top.
+    const ends = computeSliceEnds(2000, 900, [{ top: 850, bottom: 920 }], 1)
+    expect(ends[0]).toBe(850)
+  })
+
+  it('can cut in the gap between adjacent option boxes', () => {
     const ends = computeSliceEnds(
       2500,
       900,
       [
-        { top: 100, bottom: 400 },
-        { top: 400, bottom: 950 },
-        { top: 950, bottom: 980 },
+        { top: 700, bottom: 780 },
+        { top: 800, bottom: 880 },
+        { top: 900, bottom: 980 },
       ],
       1,
     )
-    // Ideal 900 is inside the second line → cut at that line's top (400).
-    expect(ends[0]).toBe(400)
+    // Ideal 900 is exactly at third box top — not interior; first cut lands in gap or at 900.
+    // Force interior: ideal 920 inside third box → cut at 900.
+    const endsInside = computeSliceEnds(
+      2500,
+      920,
+      [
+        { top: 700, bottom: 780 },
+        { top: 800, bottom: 880 },
+        { top: 900, bottom: 980 },
+      ],
+      1,
+    )
+    expect(endsInside[0]).toBe(900)
+    // Gap between first two is cuttable when ideal lands there.
+    expect(ends[0]).toBeLessThanOrEqual(900)
+  })
+
+  it('prefers a short page above the block over mid-glyph hard-cut', () => {
+    const ends = computeSliceEnds(500, 100, [{ top: 5, bottom: 150 }], 1)
+    expect(ends[0]).toBe(5)
+  })
+
+  it('hard-cuts when the block starts at page top and is taller than the page', () => {
+    const ends = computeSliceEnds(500, 100, [{ top: 0, bottom: 250 }], 1)
+    expect(ends[0]).toBe(100)
+    expect(ends[ends.length - 1]).toBe(500)
   })
 
   it('hard-cuts when a single protected line is taller than a page', () => {
@@ -64,6 +101,38 @@ describe('computeSliceEnds', () => {
   })
 })
 
+describe('packPageEnds', () => {
+  it('does not cut through an option box; ends at box top', () => {
+    const ends = packPageEnds(
+      2000,
+      900,
+      [
+        { top: 100, bottom: 160 },
+        { top: 180, bottom: 240 },
+        { top: 850, bottom: 920 },
+      ],
+    )
+    expect(ends[0]).toBe(850)
+    expect(ends[ends.length - 1]).toBe(2000)
+  })
+
+  it('allows a topic section to span pages via gaps between options', () => {
+    // Three options in one topic; page capacity fits first two only → cut before 3rd.
+    const ends = packPageEnds(
+      600,
+      250,
+      [
+        { top: 40, bottom: 100 },
+        { top: 120, bottom: 180 },
+        { top: 200, bottom: 260 },
+      ],
+    )
+    expect(ends[0]).toBe(200)
+    expect(ends.length).toBeGreaterThan(1)
+    expect(ends[ends.length - 1]).toBe(600)
+  })
+})
+
 describe('collectTextLineSpans', () => {
   let restoreGetClientRects: (() => void) | undefined
 
@@ -71,12 +140,10 @@ describe('collectTextLineSpans', () => {
     const original = Range.prototype.getClientRects
     Range.prototype.getClientRects = function getClientRects(this: Range) {
       const text = this.toString()
-      // Simulate two wrapped lines for long text; one line otherwise.
       if (text.length > 12) {
-        // Leave a gap between lines so they do not merge.
         return [
           domRect(0, 100, 200, 18),
-          domRect(0, 120, 160, 18),
+          domRect(0, 130, 160, 18),
         ] as unknown as DOMRectList
       }
       return [domRect(0, 50, text.length * 10, 16)] as unknown as DOMRectList
@@ -91,28 +158,28 @@ describe('collectTextLineSpans', () => {
   })
 
   it('collects one span per visual text line from getClientRects', () => {
-    const stage = document.createElement('div')
+    const wrap = document.createElement('div')
     const content = document.createElement('div')
     content.className = 'content'
     content.textContent = '这是一段会折成两行的足够长的题干文字内容'
-    stage.appendChild(content)
-    document.body.appendChild(stage)
+    wrap.appendChild(content)
+    document.body.appendChild(wrap)
 
-    Object.defineProperty(stage, 'getBoundingClientRect', {
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
       configurable: true,
-      value: () => domRect(0, 0, 800, 2000),
+      value: () => domRect(10, 20, 800, 2000),
     })
 
-    const spans = collectTextLineSpans(content, stage)
+    const spans = collectTextLineSpans(content, wrap)
     expect(spans.length).toBeGreaterThanOrEqual(2)
-    // Lines should remain separable (not one giant block).
-    expect(spans.every((s) => s.bottom - s.top < 40)).toBe(true)
+    expect(spans[0]).toEqual({ top: 78, bottom: 100 })
+    expect(spans[1]).toEqual({ top: 108, bottom: 130 })
 
-    stage.remove()
+    wrap.remove()
   })
 
   it('skips annotation chrome text', () => {
-    const stage = document.createElement('div')
+    const wrap = document.createElement('div')
     const content = document.createElement('div')
     const paper = document.createElement('p')
     paper.textContent = '试卷正文'
@@ -120,19 +187,108 @@ describe('collectTextLineSpans', () => {
     callout.className = 'callout-box'
     callout.textContent = '引注不应参与行保护'
     content.append(paper, callout)
-    stage.appendChild(content)
-    document.body.appendChild(stage)
+    wrap.appendChild(content)
+    document.body.appendChild(wrap)
 
-    Object.defineProperty(stage, 'getBoundingClientRect', {
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
       configurable: true,
       value: () => domRect(0, 0, 800, 2000),
     })
 
-    const spans = collectTextLineSpans(content, stage)
-    // Only paper text (short → one mocked line), not callout.
+    const spans = collectTextLineSpans(content, wrap)
     expect(spans.length).toBe(1)
+    expect(spans[0]).toEqual({ top: 48, bottom: 68 })
 
-    stage.remove()
+    wrap.remove()
+  })
+
+  it('skips text inside atomic option boxes', () => {
+    const wrap = document.createElement('div')
+    const content = document.createElement('div')
+    const option = document.createElement('div')
+    option.className = 'option'
+    option.textContent = 'A. 选项文字在原子块内'
+    content.appendChild(option)
+    wrap.appendChild(content)
+    document.body.appendChild(wrap)
+
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => domRect(0, 0, 800, 2000),
+    })
+
+    expect(collectTextLineSpans(content, wrap)).toEqual([])
+
+    wrap.remove()
+  })
+})
+
+describe('collectAtomicBlockSpans / collectProtectedSpans', () => {
+  it('collects full option boxes including border box', () => {
+    const wrap = document.createElement('div')
+    const content = document.createElement('div')
+    const optA = document.createElement('div')
+    optA.className = 'option'
+    const optB = document.createElement('div')
+    optB.className = 'option'
+    content.append(optA, optB)
+    wrap.appendChild(content)
+    document.body.appendChild(wrap)
+
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => domRect(0, 0, 800, 2000),
+    })
+    Object.defineProperty(optA, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => domRect(0, 100, 400, 40),
+    })
+    Object.defineProperty(optB, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => domRect(0, 160, 400, 40),
+    })
+
+    const spans = collectAtomicBlockSpans(content, wrap)
+    expect(spans).toEqual([
+      { top: 98, bottom: 142 },
+      { top: 158, bottom: 202 },
+    ])
+
+    wrap.remove()
+  })
+
+  it('merges atomic blocks with outside text lines', () => {
+    const original = Range.prototype.getClientRects
+    Range.prototype.getClientRects = function getClientRects() {
+      return [domRect(0, 50, 100, 16)] as unknown as DOMRectList
+    }
+
+    const wrap = document.createElement('div')
+    const content = document.createElement('div')
+    const stem = document.createElement('p')
+    stem.textContent = '题干'
+    const option = document.createElement('div')
+    option.className = 'option'
+    option.textContent = 'A. 选项'
+    content.append(stem, option)
+    wrap.appendChild(content)
+    document.body.appendChild(wrap)
+
+    Object.defineProperty(wrap, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => domRect(0, 0, 800, 2000),
+    })
+    Object.defineProperty(option, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => domRect(0, 100, 400, 40),
+    })
+
+    const spans = collectProtectedSpans(content, wrap)
+    expect(spans.some((s) => s.top === 48 && s.bottom === 68)).toBe(true)
+    expect(spans.some((s) => s.top === 98 && s.bottom === 142)).toBe(true)
+
+    Range.prototype.getClientRects = original
+    wrap.remove()
   })
 })
 

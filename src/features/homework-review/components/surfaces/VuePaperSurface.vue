@@ -4,6 +4,7 @@ import AnnotationCallouts from '../layers/AnnotationCallouts.vue'
 import AnnotationCanvas from '../layers/AnnotationCanvas.vue'
 import AnnotationMarkers from '../layers/AnnotationMarkers.vue'
 import AnnotationPins from '../layers/AnnotationPins.vue'
+import ExamNavAside from '../ExamNavAside.vue'
 import PaperMarkingView from '../PaperMarkingView.vue'
 import {
   beginExportRootLayout,
@@ -100,109 +101,116 @@ defineExpose<AnnotatedSurfaceExportApi>({
 
 <template>
   <div ref="rootRef" class="html-surface" :class="{ 'is-exporting': exportMode }">
-    <div
-      ref="stageRef"
-      class="stage"
-      :class="[`tool-${store.tool.value}`, { 'is-exporting': exportMode }]"
-      :style="paperStyle"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
-    >
-      <div ref="contentBoxRef" class="content-shell">
-        <div ref="contentRef" class="content" contenteditable="false">
-          <PaperMarkingView v-if="answerContent.paper.value" :paper="answerContent.paper.value" />
-        </div>
-
-        <div class="overlay-root" :style="{ width: `${size.width}px`, height: `${size.height}px` }">
-          <div class="mark-layer" aria-hidden="true">
-            <span
-              v-for="rect in highlightRects"
-              :key="rect.id"
-              class="highlight"
-              :style="{
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                background: rect.color,
-              }"
-            />
-            <span
-              v-for="rect in underlineRects"
-              :key="rect.id"
-              class="underline"
-              :style="{
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                background: rect.color,
-              }"
-            />
-            <span
-              v-for="(rect, index) in previewRects"
-              :key="`preview_${index}`"
-              :class="store.tool.value === 'highlight' ? 'highlight is-preview' : 'underline is-preview'"
-              :style="{
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                background: rect.color || '#ef4444',
-              }"
-            />
+    <div class="paper-row">
+      <div
+        ref="stageRef"
+        class="stage"
+        :class="[`tool-${store.tool.value}`, { 'is-exporting': exportMode }]"
+        :style="paperStyle"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+      >
+        <div ref="contentBoxRef" class="content-shell">
+          <div ref="contentRef" class="content" contenteditable="false">
+            <PaperMarkingView v-if="answerContent.paper.value" :paper="answerContent.paper.value" />
           </div>
 
-          <AnnotationCanvas
-            :width="size.width"
-            :height="size.height"
-            :annotations="canvasAnnotations"
-            :selected-id="store.selectedId.value"
-            :draft-points="draftPoints"
-          />
+          <div class="overlay-root" :style="{ width: `${size.width}px`, height: `${size.height}px` }">
+            <div class="mark-layer" aria-hidden="true">
+              <span
+                v-for="rect in highlightRects"
+                :key="rect.id"
+                class="highlight"
+                :style="{
+                  left: `${rect.left}px`,
+                  top: `${rect.top}px`,
+                  width: `${rect.width}px`,
+                  height: `${rect.height}px`,
+                  background: rect.color,
+                }"
+              />
+              <span
+                v-for="rect in underlineRects"
+                :key="rect.id"
+                class="underline"
+                :style="{
+                  left: `${rect.left}px`,
+                  top: `${rect.top}px`,
+                  width: `${rect.width}px`,
+                  height: `${rect.height}px`,
+                  background: rect.color,
+                }"
+              />
+              <span
+                v-for="(rect, index) in previewRects"
+                :key="`preview_${index}`"
+                :class="store.tool.value === 'highlight' ? 'highlight is-preview' : 'underline is-preview'"
+                :style="{
+                  left: `${rect.left}px`,
+                  top: `${rect.top}px`,
+                  width: `${rect.width}px`,
+                  height: `${rect.height}px`,
+                  background: rect.color || '#ef4444',
+                }"
+              />
+            </div>
 
-          <AnnotationPins
-            :pins="positionedPins"
-            :visible-ids="visibleIds"
-            :selected-id="store.selectedId.value"
-            :width="size.width"
-            :height="size.height"
-            @select="store.select"
-          />
+            <AnnotationCanvas
+              :width="size.width"
+              :height="size.height"
+              :annotations="canvasAnnotations"
+              :selected-id="store.selectedId.value"
+              :draft-points="draftPoints"
+            />
 
-          <AnnotationMarkers
-            :stamps="positionedStamps"
-            :textboxes="positionedTextboxes"
-            :selected-id="store.selectedId.value"
-            :width="size.width"
-            :height="size.height"
-            :tool="store.tool.value"
-            :export-mode="exportMode"
-            @select="store.select"
-            @move-stamp="store.updateStampPosition"
-            @move-textbox="store.updateTextboxPosition"
-          />
+            <AnnotationPins
+              :pins="positionedPins"
+              :visible-ids="visibleIds"
+              :selected-id="store.selectedId.value"
+              :width="size.width"
+              :height="size.height"
+              @select="store.select"
+            />
 
-          <AnnotationCallouts
-            :callouts="positionedCallouts"
-            :selected-id="store.selectedId.value"
-            :width="size.width"
-            :height="size.height"
-            :tool="store.tool.value"
-            :draft-tip="exportMode ? null : store.calloutDraftTip.value"
-            :draft-preview="exportMode ? null : store.calloutPreview.value"
-            :export-mode="exportMode"
-            @select="store.select"
-            @move-tip="store.updateCalloutTip"
-            @move-box="store.updateCalloutBox"
-          />
+            <AnnotationMarkers
+              :stamps="positionedStamps"
+              :textboxes="positionedTextboxes"
+              :selected-id="store.selectedId.value"
+              :width="size.width"
+              :height="size.height"
+              :tool="store.tool.value"
+              :export-mode="exportMode"
+              @select="store.select"
+              @move-stamp="store.updateStampPosition"
+              @move-textbox="store.updateTextboxPosition"
+            />
+
+            <AnnotationCallouts
+              :callouts="positionedCallouts"
+              :selected-id="store.selectedId.value"
+              :width="size.width"
+              :height="size.height"
+              :tool="store.tool.value"
+              :draft-tip="exportMode ? null : store.calloutDraftTip.value"
+              :draft-preview="exportMode ? null : store.calloutPreview.value"
+              :export-mode="exportMode"
+              @select="store.select"
+              @move-tip="store.updateCalloutTip"
+              @move-box="store.updateCalloutBox"
+            />
+          </div>
         </div>
       </div>
+
+      <ExamNavAside
+        v-if="answerContent.paper.value && !exportMode"
+        :paper="answerContent.paper.value"
+      />
     </div>
     <p v-show="!exportMode" class="hint">
-      Vue 试卷：内容区固定宽度；图章/短文本/引注只存相对试卷坐标。选中工具可拖改位；划词依赖文本节点稳定。
+      Vue 试卷：内容区略宽于 A4 以免得分表换行；题号导航在试卷外，不进入 PDF。
     </p>
   </div>
 </template>
@@ -215,10 +223,22 @@ defineExpose<AnnotatedSurfaceExportApi>({
   box-sizing: border-box;
 }
 
+.paper-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  width: max-content;
+  min-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
 .stage {
   position: relative;
   width: var(--paper-stage-width);
-  margin: 0 auto;
+  flex-shrink: 0;
+  margin: 0;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
@@ -295,7 +315,7 @@ defineExpose<AnnotatedSurfaceExportApi>({
 }
 
 .hint {
-  max-width: 980px;
+  max-width: 1080px;
   margin: 12px auto 0;
   color: #64748b;
   font-size: 13px;

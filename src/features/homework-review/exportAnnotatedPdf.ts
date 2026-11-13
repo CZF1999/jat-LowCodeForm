@@ -65,22 +65,29 @@ export interface VerticalSpan {
 const SKIP_TEXT_CLOSEST =
   '.callout-box, .textbox, .stamp, .tip-handle, .pin, .mark-layer, .callout-layer, .marker-layer'
 
-/** Keep 0 so adjacent ink lines stay separable for page breaks. */
-const TEXT_LINE_PAD_PX = 0
+/**
+ * Unbreakable paper blocks (include padding/border). Topic sections may still
+ * span pages — we do NOT protect whole `.topic-block` / `#box_*`.
+ */
+export const ATOMIC_BLOCK_SELECTOR =
+  '.option, .topic-type, .ks-box, .zq-box, .answer-table, .exam-scope'
+
+/** Safety pad so subpixel / scale rounding does not miss an ink line or border. */
+const SPAN_PAD_PX = 2
 const A4_WIDTH_MM = 210
 const A4_HEIGHT_MM = 297
 const PAGE_MARGIN_MM = 8
 
 /**
- * Collect visual text-line boxes from paper content (CSS px, relative to stage).
- * Uses Range.getClientRects so wrapped paragraphs yield one span per ink line —
- * page cuts can land between lines instead of through mid-glyph.
+ * Collect visual text-line boxes from paper content (CSS px, relative to `origin`).
+ * Prefer `origin` = capture wrap so coordinates match the screenshot bitmap.
+ * Skips text inside annotation chrome and inside atomic bordered blocks.
  */
 export function collectTextLineSpans(
   contentRoot: HTMLElement,
-  stage: HTMLElement,
+  origin: HTMLElement,
 ): VerticalSpan[] {
-  const stageRect = stage.getBoundingClientRect()
+  const originRect = origin.getBoundingClientRect()
   const spans: VerticalSpan[] = []
   const walker = document.createTreeWalker(contentRoot, NodeFilter.SHOW_TEXT)
   let current = walker.nextNode()
@@ -93,7 +100,7 @@ export function collectTextLineSpans(
       continue
     }
     const parent = text.parentElement
-    if (parent?.closest(SKIP_TEXT_CLOSEST)) {
+    if (parent?.closest(SKIP_TEXT_CLOSEST) || parent?.closest(ATOMIC_BLOCK_SELECTOR)) {
       current = walker.nextNode()
       continue
     }
@@ -103,14 +110,46 @@ export function collectTextLineSpans(
     for (const rect of Array.from(range.getClientRects())) {
       if (rect.width <= 0 || rect.height <= 0) continue
       spans.push({
-        top: rect.top - stageRect.top - TEXT_LINE_PAD_PX,
-        bottom: rect.bottom - stageRect.top + TEXT_LINE_PAD_PX,
+        top: rect.top - originRect.top - SPAN_PAD_PX,
+        bottom: rect.bottom - originRect.top + SPAN_PAD_PX,
       })
     }
     current = walker.nextNode()
   }
 
   return mergeSpans(spans)
+}
+
+/** Full element boxes for bordered / titled units that must not be sliced. */
+export function collectAtomicBlockSpans(
+  contentRoot: HTMLElement,
+  origin: HTMLElement,
+): VerticalSpan[] {
+  const originRect = origin.getBoundingClientRect()
+  const spans: VerticalSpan[] = []
+  contentRoot.querySelectorAll(ATOMIC_BLOCK_SELECTOR).forEach((node) => {
+    const el = node as HTMLElement
+    const rect = el.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return
+    spans.push({
+      top: rect.top - originRect.top - SPAN_PAD_PX,
+      bottom: rect.bottom - originRect.top + SPAN_PAD_PX,
+    })
+  })
+  return mergeSpans(spans)
+}
+
+/**
+ * Protected Y spans for PDF slicing: atomic bordered blocks + text lines outside them.
+ */
+export function collectProtectedSpans(
+  contentRoot: HTMLElement,
+  origin: HTMLElement,
+): VerticalSpan[] {
+  return mergeSpans([
+    ...collectAtomicBlockSpans(contentRoot, origin),
+    ...collectTextLineSpans(contentRoot, origin),
+  ])
 }
 
 /** Merge only strictly overlapping ranges; touching endpoints stay separate for cut gaps. */
@@ -137,19 +176,19 @@ export function mergeSpans(spans: VerticalSpan[]): VerticalSpan[] {
 }
 
 /**
- * Compute source-image Y cut positions (exclusive ends of each page slice).
- * Cuts avoid interiors of protected spans (CSS px → image px via scale).
+ * Pack page end Y positions (exclusive) so cuts avoid protected span interiors.
+ * When `cssToImageScale === 1`, units are CSS px (preferred for per-page capture).
  */
 export function computeSliceEnds(
-  imageHeight: number,
-  maxSliceHeight: number,
+  contentHeight: number,
+  maxPageHeight: number,
   protectedCss: VerticalSpan[],
   cssToImageScale: number,
 ): number[] {
-  if (imageHeight <= 0) return [0]
-  if (maxSliceHeight <= 0) return [imageHeight]
+  if (contentHeight <= 0) return [0]
+  if (maxPageHeight <= 0) return [contentHeight]
 
-  const protectedImg = protectedCss.map((s) => ({
+  const protectedScaled = protectedCss.map((s) => ({
     top: s.top * cssToImageScale,
     bottom: s.bottom * cssToImageScale,
   }))
@@ -157,34 +196,31 @@ export function computeSliceEnds(
   const ends: number[] = []
   let cursor = 0
 
-  while (cursor < imageHeight - 0.5) {
-    let ideal = Math.min(cursor + maxSliceHeight, imageHeight)
-    if (ideal >= imageHeight - 0.5) {
-      ends.push(imageHeight)
+  while (cursor < contentHeight - 0.5) {
+    let ideal = Math.min(cursor + maxPageHeight, contentHeight)
+    if (ideal >= contentHeight - 0.5) {
+      ends.push(contentHeight)
       break
     }
 
     let cut = ideal
-    const blocking = protectedImg.find((s) => cut > s.top + 0.5 && cut < s.bottom - 0.5)
+    const blocking = protectedScaled.find((s) => cut > s.top + 0.5 && cut < s.bottom - 0.5)
     if (blocking) {
-      // Prefer cutting just above the protected block.
       const above = blocking.top
+      const below = Math.min(blocking.bottom, contentHeight)
       if (above > cursor + 8) {
         cut = above
+      } else if (below - cursor <= maxPageHeight + 0.5) {
+        cut = below
+      } else if (above > cursor + 1) {
+        cut = above
       } else {
-        // Block taller than remaining page: push whole block to next page if possible,
-        // otherwise hard-cut at ideal to avoid infinite loop.
-        const below = Math.min(blocking.bottom, imageHeight)
-        if (below - cursor <= maxSliceHeight) {
-          cut = below
-        } else {
-          cut = ideal
-        }
+        cut = ideal
       }
     }
 
     if (cut <= cursor + 1) {
-      cut = Math.min(cursor + maxSliceHeight, imageHeight)
+      cut = Math.min(cursor + maxPageHeight, contentHeight)
     }
 
     ends.push(cut)
@@ -192,6 +228,15 @@ export function computeSliceEnds(
   }
 
   return ends
+}
+
+/** CSS-px page ends from protected spans (no bitmap scale). */
+export function packPageEnds(
+  cssHeight: number,
+  maxPageCssPx: number,
+  protectedCss: VerticalSpan[],
+): number[] {
+  return computeSliceEnds(cssHeight, maxPageCssPx, protectedCss, 1)
 }
 
 function waitFrames(count = 2): Promise<void> {
@@ -318,9 +363,69 @@ export interface ExportAnnotatedPdfOptions {
   scale?: number
 }
 
+function screenshotFilter(node: Node): boolean {
+  if (!(node instanceof Element)) return true
+  if (node.classList.contains('hint')) return false
+  if (node.classList.contains('is-preview')) return false
+  return true
+}
+
 /**
- * Prepare export mode → bake range marks into text → rasterize full `.stage`
- * → smart-slice into A4 PDF → download.
+ * Clip `source` into a fixed-height viewport and screenshot one CSS page band.
+ * Uses translateY so cuts happen between packed ranges — not mid-bitmap slicing.
+ */
+async function captureCssPageBand(
+  source: HTMLElement,
+  y0: number,
+  y1: number,
+  scale: number,
+): Promise<HTMLCanvasElement> {
+  const pageH = Math.max(1, y1 - y0)
+  const pageW = Math.max(source.scrollWidth, source.clientWidth, 1)
+  const parent = source.parentElement
+  if (!parent) {
+    throw new Error('导出截图容器缺少父节点')
+  }
+
+  const viewport = document.createElement('div')
+  viewport.dataset.exportPageViewport = '1'
+  viewport.style.cssText = [
+    'overflow:hidden',
+    'position:relative',
+    'background:#ffffff',
+    `width:${pageW}px`,
+    `height:${pageH}px`,
+    'box-sizing:border-box',
+  ].join(';')
+
+  const prevTransform = source.style.transform
+  const prevWillChange = source.style.willChange
+
+  parent.insertBefore(viewport, source)
+  viewport.appendChild(source)
+  source.style.transform = `translateY(${-y0}px)`
+  source.style.willChange = 'transform'
+
+  try {
+    await waitFrames(1)
+    return await domToCanvas(viewport, {
+      scale,
+      width: pageW,
+      height: pageH,
+      backgroundColor: '#ffffff',
+      filter: screenshotFilter,
+    })
+  } finally {
+    source.style.transform = prevTransform
+    source.style.willChange = prevWillChange
+    parent.insertBefore(source, viewport)
+    viewport.remove()
+  }
+}
+
+/**
+ * Prepare export → bake marks → CSS-pack pages at protected gaps →
+ * per-page screenshot into A4 PDF → download.
  */
 export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Promise<void> {
   const { surface, surfaceMode } = options
@@ -355,40 +460,19 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
   const { wrap, unwrap } = wrapStageForCapture(root)
   await waitFrames(1)
 
-  let canvas: HTMLCanvasElement
   try {
-    // Spans are relative to stage; pad shifts stage inside wrap — adjust Y by pad.top.
-    const padTop = Number.parseFloat(wrap.style.paddingTop || '0') || 0
     const contentWidthMm = A4_WIDTH_MM - PAGE_MARGIN_MM * 2
     const contentHeightMm = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2
     const textRoot = contentRoot ?? root
-    const protectedSpans = collectTextLineSpans(textRoot, root).map((s) => ({
-      top: s.top + padTop,
-      bottom: s.bottom + padTop,
-    }))
-
-    canvas = await domToCanvas(wrap, {
-      scale,
-      backgroundColor: '#ffffff',
-      filter: (node) => {
-        if (!(node instanceof Element)) return true
-        if (node.classList.contains('hint')) return false
-        if (node.classList.contains('is-preview')) return false
-        return true
-      },
-    })
 
     const cssWidth = Math.max(wrap.scrollWidth, wrap.clientWidth, 1)
-    const cssToImageScale = canvas.width / cssWidth
+    const cssHeight = Math.max(wrap.scrollHeight, wrap.clientHeight, 1)
     const mmPerCssPx = contentWidthMm / cssWidth
-    const maxSliceImgPx = (contentHeightMm / mmPerCssPx) * cssToImageScale
+    const maxPageCssPx = contentHeightMm / mmPerCssPx
 
-    const sliceEnds = computeSliceEnds(
-      canvas.height,
-      maxSliceImgPx,
-      protectedSpans,
-      cssToImageScale,
-    )
+    // Pack in CSS space first — cuts only at gaps between unbreakable units.
+    const protectedSpans = collectProtectedSpans(textRoot, wrap)
+    const pageEnds = packPageEnds(cssHeight, maxPageCssPx, protectedSpans)
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -398,32 +482,14 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
     })
 
     let yStart = 0
-    for (let i = 0; i < sliceEnds.length; i++) {
-      const yEnd = sliceEnds[i]
-      const sliceH = Math.max(1, Math.round(yEnd - yStart))
-      const sliceCanvas = document.createElement('canvas')
-      sliceCanvas.width = canvas.width
-      sliceCanvas.height = sliceH
-      const ctx = sliceCanvas.getContext('2d')
-      if (!ctx) throw new Error('无法创建分页画布')
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height)
-      ctx.drawImage(
-        canvas,
-        0,
-        Math.round(yStart),
-        canvas.width,
-        sliceH,
-        0,
-        0,
-        canvas.width,
-        sliceH,
-      )
+    for (let i = 0; i < pageEnds.length; i++) {
+      const yEnd = pageEnds[i]
+      const pageCssH = Math.max(1, yEnd - yStart)
+      const pageCanvas = await captureCssPageBand(wrap, yStart, yEnd, scale)
 
-      const sliceCssH = sliceH / cssToImageScale
       const drawW = contentWidthMm
-      const drawH = sliceCssH * mmPerCssPx
-      const dataUrl = sliceCanvas.toDataURL('image/jpeg', 0.92)
+      const drawH = pageCssH * mmPerCssPx
+      const dataUrl = pageCanvas.toDataURL('image/jpeg', 0.92)
 
       if (i > 0) pdf.addPage()
       pdf.addImage(dataUrl, 'JPEG', PAGE_MARGIN_MM, PAGE_MARGIN_MM, drawW, drawH)
