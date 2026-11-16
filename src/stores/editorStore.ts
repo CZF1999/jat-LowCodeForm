@@ -49,7 +49,7 @@ export const useEditorStore = defineStore('editor', {
         // 表单级配置
         formTitle: '表单',
         layout: 'grid',
-        columns: 2
+        // columns: 2
       },
       components: []
     },

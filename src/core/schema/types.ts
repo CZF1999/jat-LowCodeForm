@@ -50,7 +50,7 @@ export interface PageSettings {
   meta: Record<string, string>;
   formTitle?: string;
   layout?: 'grid' | 'inline' | 'vertical';
-  columns?: number;
+  // columns?: number;
 }
 
 // 页面Schema接口
@@ -108,7 +108,7 @@ export interface FormConfig {
   [formKey: string]: {
     title: string;
     layout: 'grid' | 'inline' | 'vertical';
-    columns: number;            // 24栅格列数
+    // columns: number;            // 24栅格列数
     fields: FieldConfig[];
   }
 }

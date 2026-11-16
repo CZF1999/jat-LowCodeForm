@@ -243,7 +243,7 @@ export function generateFormConfig(components: ComponentSchema[], pageSettings: 
     [formKey]: {
       title: formTitle,
       layout: pageSettings.layout || 'grid',
-      columns: pageSettings.columns || 2,
+      // columns: pageSettings.columns || 2,
       fields
     }
   }
