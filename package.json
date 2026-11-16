@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "echarts": "^6.1.0",
     "element-plus": "^2.13.7",
     "jspdf": "^4.2.1",
     "modern-screenshot": "^4.7.0",

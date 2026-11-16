@@ -122,7 +122,7 @@ const getDataType = (componentType: string): string => {
     'switch': 'boolean',
     'slider': 'number',
     'rate': 'number',
-    'upload': 'file'
+    'upload': 'File[]'
   }
   return typeMap[componentType] || 'string'
 }
@@ -254,11 +254,25 @@ const generateComponentTemplate = (component: ComponentSchema): string => {
       template += '<el-rate v-model="form.' + fieldName + '" :max="' + (component.props.max || 5) + '"' + (component.props.disabled ? ' disabled' : '') + ' />\n'
       template += '</el-form-item>\n'
       break
-    case 'upload':
+    case 'upload': {
+      // 值为 File[]；auto-upload=false，提交时由业务自行上传
       template += formItemOpen(component, label, '')
-      template += '<el-upload action="#" :show-file-list="true" :auto-upload="false"' + (component.props.disabled ? ' disabled' : '') + '><el-button type="primary" size="small"><el-icon><Upload /></el-icon>' + (component.props.placeholder || '上传文件') + '</el-button></el-upload>\n'
+      template += '<!-- upload 字段值为 File[]：on-change/on-remove 用 file.raw 同步；提交时业务自行上传 -->\n'
+      let uploadAttrs = 'action="#" :show-file-list="true" :auto-upload="false"'
+      if (component.props.accept) {
+        uploadAttrs += ' accept="' + component.props.accept + '"'
+      }
+      if (component.props.multiple) {
+        uploadAttrs += ' multiple'
+      }
+      uploadAttrs += ' :limit="' + (component.props.limit || 1) + '"'
+      if (component.props.disabled) {
+        uploadAttrs += ' disabled'
+      }
+      template += '<el-upload ' + uploadAttrs + '><el-button type="primary" size="small"' + (component.props.disabled ? ' disabled' : '') + '><el-icon><Upload /></el-icon>' + (component.props.placeholder || '上传文件') + '</el-button></el-upload>\n'
       template += '</el-form-item>\n'
       break
+    }
     case 'button':
       template += '<el-button type="' + (component.props.type || 'primary') + '" size="' + (component.props.size || 'small') + '"' + (component.props.disabled ? ' disabled' : '') + (component.props.round ? ' round' : '') + (component.props.circle ? ' circle' : '') + '>' + (component.props.label || 'Button') + '</el-button>\n'
       break

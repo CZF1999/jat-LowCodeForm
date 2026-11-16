@@ -119,7 +119,7 @@ const materials: MaterialDef[] = [
     type: 'input',
     name: '输入框',
     icon: 'Edit',
-    category: 'layout',
+    category: 'form',
     version: '1.0.0',
     propsSchema: {
       placeholder: {
@@ -842,6 +842,22 @@ const materials: MaterialDef[] = [
         type: 'string',
         default: 'Upload file'
       },
+      accept: {
+        type: 'string',
+        default: ''
+      },
+      multiple: {
+        type: 'boolean',
+        default: false
+      },
+      limit: {
+        type: 'number',
+        default: 1
+      },
+      maxSize: {
+        type: 'number',
+        default: 0
+      },
       disabled: {
         type: 'boolean',
         default: false
@@ -861,6 +877,10 @@ const materials: MaterialDef[] = [
     },
     defaultProps: {
       placeholder: 'Upload file',
+      accept: '',
+      multiple: false,
+      limit: 1,
+      maxSize: 0,
       disabled: false,
       fieldName: '',
       span: 24,
@@ -993,30 +1013,6 @@ const materials: MaterialDef[] = [
     isContainer: true,
     childrenTypes: ['button', 'input', 'text']
   },
-  {
-    type: 'subform',
-    name: '子表单',
-    icon: 'Grid',
-    category: 'form',
-    version: '1.0.0',
-    propsSchema: {
-      title: {
-        type: 'string',
-        default: 'Subform'
-      }
-    },
-    defaultProps: {
-      title: 'Subform'
-    },
-    defaultStyles: {
-      margin: '16px 0',
-      padding: '16px',
-      border: '1px solid #e0e0e0',
-      borderRadius: '4px'
-    },
-    isContainer: true,
-    childrenTypes: ['button', 'input', 'textarea', 'number', 'radio', 'checkbox', 'select', 'cascader', 'date', 'time', 'switch', 'slider', 'rate', 'upload', 'static-text']
-  }
 ]
 
 // 物料组件映射

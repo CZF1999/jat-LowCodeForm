@@ -10,14 +10,15 @@ const FORM_COMPONENT_TYPES: string[] = [
 ]
 
 // 内部元数据属性（不应输出到 props 中）
+// 注意：multiple / accept / limit / maxSize / separator / checkStrictly / emitPath
+// 属于组件原生约束，需随 FormConfig.props 导出给消费方
 const META_PROPS: string[] = [
   'fieldName', 'span', 'pidField', 'visibleCondition',
-  'optionsType', 'optionsApi', 'options', 'defaultValue',
-  'separator', 'multiple', 'checkStrictly', 'emitPath'
+  'optionsType', 'optionsApi', 'options', 'defaultValue'
 ]
 
 // 获取数据类型默认值
-const getDefaultValue = (type: string): string | number | boolean | string[] => {
+const getDefaultValue = (type: string): string | number | boolean | unknown[] => {
   switch (type) {
     case 'input':
     case 'textarea':
@@ -32,6 +33,7 @@ const getDefaultValue = (type: string): string | number | boolean | string[] => 
     case 'rate':
       return 0
     case 'checkbox':
+    case 'upload':
       return []
     case 'switch':
       return false
@@ -79,11 +81,19 @@ const generateRules = (component: ComponentSchema): ValidationRule[] | undefined
   const rules: ValidationRule[] = []
 
   if (validation.required) {
-    rules.push({
-      required: true,
-      message: `请输入${component.label || '字段'}`,
-      trigger: 'blur'
-    })
+    if (component.type === 'upload') {
+      rules.push({
+        required: true,
+        message: `请上传${component.label || '文件'}`,
+        trigger: 'change'
+      })
+    } else {
+      rules.push({
+        required: true,
+        message: `请输入${component.label || '字段'}`,
+        trigger: 'blur'
+      })
+    }
   }
 
   if (validation.type === 'string') {
@@ -187,9 +197,11 @@ const generateField = (component: ComponentSchema): FieldConfig => {
     field.props = outputProps
   }
 
-  // 默认值
+  // 默认值（upload 固定为 File[]，缺省导出 []）
   if (component.props?.defaultValue !== undefined) {
     field.defaultValue = component.props.defaultValue
+  } else if (component.type === 'upload') {
+    field.defaultValue = []
   }
 
   return field
@@ -594,11 +606,7 @@ export function generateDependencyManifest(
     { name: 'async-validator', version: '^4.0.0', reason: '表单数据校验（element-plus 已内置，显式声明以便独立使用）' }
   ]
 
-  // 检查是否包含上传组件
   const hasUpload = components.some(c => c.type === 'upload')
-  if (hasUpload) {
-    deps.push({ name: 'axios', version: '^1.0.0', reason: '文件上传 HTTP 请求（若使用自定义上传逻辑）' })
-  }
 
   let md = '# 依赖清单\n\n'
   md += '> 以下为运行表单产物所需的 npm 依赖，自动生成。\n\n'
@@ -620,6 +628,14 @@ export function generateDependencyManifest(
   md += 'const { form, rules, submitForm, resetForm } = useXxxForm()\n'
   md += '</script>\n'
   md += '```\n'
+
+  if (hasUpload) {
+    md += '\n'
+    md += '## Upload 字段契约（File[]）\n\n'
+    md += '- 字段值类型为 `File[]`，JSON 只描述字段约束（accept / multiple / limit / maxSize 等），**不含**上传地址\n'
+    md += '- 动态表单渲染 `el-upload`，固定 `auto-upload=false`；`on-change` / `on-remove` 用 `file.raw` 同步为 `File[]`\n'
+    md += '- **提交时由业务自行上传**（如 `FormData.append`），HTTP 库自选，本产物不负责上传\n'
+  }
 
   return md
 }
@@ -649,6 +665,8 @@ export function generateFormLogicModule(
 
   let code = ''
 
+  const hasUploadField = fields.some(f => f.componentType === 'upload')
+
   // ---- 文件头 ----
   code += '/**\n'
   code += ' * ========================================\n'
@@ -660,6 +678,13 @@ export function generateFormLogicModule(
   code += ' *\n'
   code += ' * Element Plus 组件需在 main.ts 中全局注册。\n'
   code += ' *\n'
+  if (hasUploadField) {
+    code += ' * Upload 契约:\n'
+    code += ' *   - 字段值为 File[]；el-upload 使用 auto-upload=false\n'
+    code += ' *   - on-change/on-remove 用 file.raw 同步 File[]\n'
+    code += ' *   - 提交时由业务自行上传（FormData），本模块不负责上传\n'
+    code += ' *\n'
+  }
   code += ' * 使用方式:\n'
   code += ' * ```vue\n'
   code += ' * <template>\n'

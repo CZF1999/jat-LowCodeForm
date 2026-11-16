@@ -31,7 +31,7 @@ const list = computed(() => store.surfaceAnnotations.value.slice().reverse())
 
 const windowedList = computed(() => list.value.slice(0, 80))
 
-const stampSymbols: StampSymbol[] = ['correct', 'wrong', 'half', 'uncertain']
+const stampSymbols: StampSymbol[] = ['half', 'uncertain']
 
 const htmlOnlyTools = new Set<ReviewTool>(['highlight', 'underline'])
 

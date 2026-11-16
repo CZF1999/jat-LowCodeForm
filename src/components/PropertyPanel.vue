@@ -393,7 +393,10 @@ const propertyLabels: Record<string, string> = {
   separator: '分隔符',
   multiple: '多选',
   checkStrictly: '任意级可选',
-  emitPath: '返回完整路径'
+  emitPath: '返回完整路径',
+  accept: '文件类型',
+  limit: '数量上限',
+  maxSize: '大小上限(MB)'
 }
 
 // 样式标签映射

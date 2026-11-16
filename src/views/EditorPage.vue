@@ -292,7 +292,7 @@ const getDataType = (componentType: string): string => {
     switch: "boolean",
     slider: "number",
     rate: "number",
-    upload: "file",
+    upload: "File[]",
   };
   return typeMap[componentType] || "string";
 };

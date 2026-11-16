@@ -171,14 +171,19 @@
       </template>
       <template v-else-if="component.type === 'upload'">
         <el-upload
-          v-bind="component.props"
           v-on="component.events"
           @click.stop="handleComponentClick"
-          :action="'#'"
+          action="#"
           :show-file-list="true"
           :auto-upload="false"
+          :accept="component.props.accept || undefined"
+          :multiple="!!component.props.multiple"
+          :limit="component.props.limit || 1"
+          :disabled="!!component.props.disabled"
+          :before-upload="handleUploadBeforeUpload"
+          :on-change="handleUploadChange"
         >
-          <el-button type="primary">
+          <el-button type="primary" :disabled="!!component.props.disabled">
             <el-icon><Upload /></el-icon>
             {{ component.props.placeholder || '上传文件' }}
           </el-button>
@@ -252,6 +257,8 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import type { UploadFile, UploadFiles, UploadRawFile } from 'element-plus'
 import { Delete, DocumentCopy, Upload, Rank } from '@element-plus/icons-vue'
 import BlockRenderer from '../../materials/base/Block/index.vue'
 import type { ComponentSchema, PageSettings } from '../../core/schema/types'
@@ -381,6 +388,29 @@ const endEditing = (): void => {
 const cancelEditing = (): void => {
   isEditing.value = false
   editTitle.value = ''
+}
+
+/** 上传文件大小校验（MB）；设计器不实际上传 */
+const isUploadOverMaxSize = (file: File): boolean => {
+  const maxSize = Number(props.component?.props?.maxSize) || 0
+  if (maxSize <= 0) return false
+  return file.size / 1024 / 1024 > maxSize
+}
+
+const handleUploadBeforeUpload = (rawFile: UploadRawFile): boolean => {
+  if (isUploadOverMaxSize(rawFile)) {
+    ElMessage.warning(`文件大小不能超过 ${props.component?.props?.maxSize}MB`)
+    return false
+  }
+  return true
+}
+
+/** auto-upload=false 时 before-upload 不会在选文件时触发，用 change 做预览拦截提示 */
+const handleUploadChange = (uploadFile: UploadFile, _uploadFiles: UploadFiles): void => {
+  const raw = uploadFile.raw
+  if (raw && isUploadOverMaxSize(raw)) {
+    ElMessage.warning(`文件大小不能超过 ${props.component?.props?.maxSize}MB`)
+  }
 }
 
 // 处理点击事件

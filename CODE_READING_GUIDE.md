@@ -15,6 +15,7 @@
 **路由入口**：`src/main.ts` → `App.vue`（仅 `<router-view />`）→ `/` 加载 `EditorPage.vue`（真正的编辑器壳）。
 
 **核心数据流**：
+
 ```
 物料面板 ──vuedraggable clone──▶ 画布 (v-model="pageSchema.components")
                                          │
@@ -48,6 +49,7 @@
 | `MaterialMeta` | 物料元数据 | propsSchema/defaultProps/isContainer/childrenTypes |
 
 **关键理解点**：
+
 - `ComponentSchema.children` 支持容器组件递归嵌套（subform/block）
 - `FormConfig` 是配置导出通道，与 CodeGenerator（Vue SFC 导出）平级
 - `MaterialMeta.isContainer` 决定组件是否可以接收子组件
@@ -59,6 +61,7 @@
 这是整个编辑器的"大脑"。**设计精简**：只保留数据状态，拖拽相关状态全部由 vuedraggable 管理。
 
 **State（状态）**：
+
 - `pageSchema` — 唯一的真相来源（对应 PageSchema 类型）
 - `selectedId` — 当前选中的组件 ID
 - `clipboard` — 复制粘贴缓冲区
@@ -73,6 +76,7 @@
 物料拖入与画布内排序由 **vuedraggable 直接改写** `pageSchema.components`（splice/push），Store **没有** `addComponent` / `insertComponentAt` / `moveComponent`。Store 负责选中、删除、属性更新、剪贴板、历史与导入导出。
 
 **关键 Actions（与代码一致）**：
+
 ```
 initializeStore()              → past 写入初始基线快照
 deleteComponent(id)            → 递归查找删除 + saveHistory()
@@ -86,6 +90,7 @@ importSchema(schema) / exportSchema()
 ```
 
 **面试重点**：
+
 - `saveHistory()`：新操作会 `future = []`，丢弃旧的"重做分支"（标准撤销栈行为）
 - `canUndo` 要求 `past.length > 1`（past[0] 是初始基线，不能再往回弹）
 - `updateComponent` 使用 `Object.assign` 而非替换整个对象，保证 Vue 响应式正常工作
@@ -96,13 +101,15 @@ importSchema(schema) / exportSchema()
 **文件**：`src/materials/index.ts`（体量大，多为物料元数据重复结构；注册 API 很短）
 
 **阅读策略**：不要逐行读全部物料定义！重点看：
+
 1. 一种简单物料（如 `input`），理解 `propsSchema` / `defaultProps` / `defaultStyles` 的结构
 2. 一种容器物料（如 `block`），注意 `isContainer: true` 和 `childrenTypes`
 3. 一种有高级属性的物料（如 `select`），注意 `pidField`/`optionsType`/`optionsApi`
 4. 导出的 API：`getMaterials()` / `getMaterialByType()` / `getComponentByType()` / `registerMaterial()` / `unregisterMaterial()`
-5. `materials/index.ts` 里的 `materialComponents`：目前挂了 **button / input / block / cascader** 四个 Vue 实现（`materials/base/*`）
+5. `materials/index.ts` 里的 `materialComponents`：目前挂了 **button / input / block / cascader** 四个 Vue 实现（`materials/base/`*）
 
 **两套「materialComponents」不要混**：
+
 | 位置 | 含义 |
 |------|------|
 | `materials/index.ts` | 可选的 Vue 物料组件注册表（给扩展用） |
@@ -129,6 +136,7 @@ importSchema(schema) / exportSchema()
 **模块 A：组件渲染（template 部分）**
 
 弄清楚每个组件类型如何映射到 Element Plus 组件：
+
 - 多种表单控件有独立 `v-else-if` 模板分支（textarea/radio/checkbox/select/subform/static-text/upload/block/button 等）
 - 其余类型可走动态 `<component :is="...">`，这里的映射表是渲染器内部的 Element Plus 标签名，不是 `materials/index.ts` 的 Vue 注册表
 - subform：递归 `<ComponentRenderer>` 渲染子组件
@@ -195,12 +203,14 @@ const componentLayoutStyle = computed(() => {
 ```
 
 **关键设计点**：
+
 - `v-model="editorStore.pageSchema.components"` — 直接双向绑定 Store 中的组件数组，vuedraggable 内部通过 splice 操作数组（触发 Vue 响应式）
 - `group="components"` — 与物料面板共享同一个 group 名，物料面板设置 `pull: 'clone'` 允许克隆过来
 - `handle=".drag-handle"` — 指定拖拽手柄选择器，只有拖动手柄才能触发排序
 - `@change` 回调 — `added` 事件时自动选中新组件 + 保存历史
 
 **handleChange 逻辑**：
+
 ```javascript
 const handleChange = (evt) => {
   if (evt.added) {
@@ -259,6 +269,7 @@ const cloneMaterial = (material) => {
 ```
 
 **面试重点**：
+
 - 为什么 clone 中要 `generateId()`？（vuedraggable 对同一物料的每次拖拽都调用此函数，如果不生成新 ID，多次拖入同一类型组件会 ID 冲突）
 - 为什么 `props` 和 `styles` 用浅拷贝？（每个组件实例需要独立的 props/styles 对象，否则修改一个会影响其他同类型实例）
 
@@ -281,6 +292,7 @@ const cloneMaterial = (material) => {
 ```
 
 **面试重点**：
+
 - `v-model` 直接绑定 Store 的数组，为什么能工作？（Pinia state 是 Vue reactive 对象，vuedraggable 内部的 splice/push 操作会触发 Vue 响应式系统，组件自动重渲染）
 - `group="components"` 匹配了什么？（物料面板设置了 `pull: 'clone'` 和相同的 group 名，vuedraggable 自动识别为"允许从该 group clone 元素过来"）
 - `item-key="id"` 的必要性？（Vue 列表渲染需要 key 来追踪元素身份；没有 item-key，vuedraggable 无法正确识别哪些元素是新增/删除/移动的）
@@ -303,6 +315,7 @@ const cloneMaterial = (material) => {
 **面试重点**——"为什么最终选择 vuedraggable 统一方案？"
 
 回答结构：
+
 1. **问题驱动**：物料面板原先渲染 Element Plus 交互组件（slider/rate/switch），这些组件内部使用 mousedown 事件，与 SortableJS 的鼠标事件冲突 → 换为纯图标预览，消除了冲突根源
 2. **简化架构**：图标预览后，物料面板不再需要"防止误拖拽"，可以用 vuedraggable 的 `:sort="false"` + `pull: 'clone'` 统一处理
 3. **消除中间层**：不再需要旧拖拽引擎里的 handleDragStart/handleDragOver/handleDrop/calculateInsertionIndex，数据直接通过 clone 函数传递
@@ -361,6 +374,7 @@ const handleKeyDown = (event) => {
 核心思路：遍历组件树 → 字符串拼接 → 输出完整的 Vue 3 SFC。
 
 **三段式生成**：
+
 ```
 generateCode()
   ├── Template 部分：<el-form> + 各组件通过 generateComponentTemplate() 生成
@@ -369,6 +383,7 @@ generateCode()
 ```
 
 **关键函数**：
+
 - `generateComponentTemplate(component)` — 按 type 做 switch-case，拼接 HTML 字符串
 - `collectFromTree(components, callback)` — 递归收集容器内表单字段和验证规则
 - `getItemWidthStyle(component)` — 根据 span 和 layout 生成 `calc()` 宽度样式
@@ -382,12 +397,14 @@ generateCode()
 **与 CodeGenerator 的区别**：输出不是完整的 Vue 组件代码，而是声明式配置对象（及 JS/TS 源码字符串），供运行时动态表单渲染器消费。
 
 **核心函数**：
+
 - `generateFormConfig(components, pageSettings)` — 生成配置数据对象
 - `generateFormConfigJS(components, pageSettings)` — 生成 JS 源码字符串
 - `generateFormConfigTS(components, pageSettings)` — 生成 TS 源码字符串
 - `toJS(value, indent)` — **自定义 JS 序列化器**（关键创新点）
 
 **toJS 的巧妙设计**：
+
 ```javascript
 // 普通 JSON.stringify 输出：{ "key": "value" }
 // toJS 输出：{ key: 'value' }
@@ -402,6 +419,7 @@ if (isValidIdentifier(k)) key = k  // → key: 而非 "key":
 **面试重点**：为什么不用 `JSON.stringify()`？（JSON 中函数体只能存为字符串，运行时需 `eval()` 还原；JS/TS 文件中函数体是真实代码，需要自研序列化器来区分"代码字符串"和"数据字符串"）
 
 **递归容器处理**：
+
 ```javascript
 const collectFields = (components) => {
   const fields = []
@@ -426,6 +444,7 @@ const collectFields = (components) => {
 **文件**：`src/components/PropertyPanel.vue`
 
 **7 个配置区**：
+
 1. 基本信息 — 组件类型/显示名称/标题位置
 2. 布局配置 — 栅格跨度 (span: 1-24)
 3. 通用属性 — 按 type 动态渲染（string→input, boolean→switch, number→number input）
@@ -474,6 +493,7 @@ const collectFields = (components) => {
 ```
 
 **关键配置解读**：
+
 - `:sort="false"` — 物料面板内部不允许排序（固定列表）
 - `pull: 'clone'` — 拖出时克隆而非移动（源列表不变）
 - `put: false` — 不接受外部拖入（单向：物料面板 → 画布）
@@ -494,6 +514,7 @@ Schema 驱动（数据驱动）的核心好处是 **UI = render(Schema)**。Sche
 ### 6.3 撤销/重做的实现原理？
 
 基于快照 + **双栈**（Snapshot + past/future）：
+
 - 每次修改后 `JSON.parse(JSON.stringify(pageSchema))` 深拷贝推入 `history.past`，并清空 `history.future`
 - undo：把 past 栈顶弹入 future，再用 past 新栈顶恢复 `pageSchema`
 - redo：把 future 栈顶弹回 past，并恢复
@@ -504,6 +525,7 @@ Schema 驱动（数据驱动）的核心好处是 **UI = render(Schema)**。Sche
 ### 6.4 如何添加一种新组件？
 
 建议步骤：
+
 1. `materials/index.ts` 中新增物料元数据；若有独立 Vue 实现则 `registerMaterial` / 写入 `materialComponents`
 2. `ComponentRenderer.vue` 中新增模板分支，或挂到渲染器内部的 Element Plus 映射
 3. `CodeGenerator.vue` 与 `FormConfigGenerator.ts` 中补导出分支（若该类型需要出现在产物里）
