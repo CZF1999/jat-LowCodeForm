@@ -49,7 +49,7 @@
           </el-icon>
           导出 TS 配置
         </el-button>
-        <el-button type="warning" @click="handleExportAsyncValidator">
+        <!-- <el-button type="warning" @click="handleExportAsyncValidator">
           <el-icon>
             <Document />
           </el-icon>
@@ -66,7 +66,7 @@
             <Document />
           </el-icon>
           生成代码
-        </el-button>
+        </el-button> -->
         <CodeGenerator :components="editorStore.components" v-model:showCodeDialog="showCodeDialog"
           :page-settings="editorStore.pageSchema.settings" />
       </div>

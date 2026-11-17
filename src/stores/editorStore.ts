@@ -195,10 +195,9 @@ export const useEditorStore = defineStore('editor', {
       // 将当前状态推入 past 栈
       const snapshot: PageSchema = cloneSchema(this.pageSchema)
       this.history.past.push(snapshot)
-
+      console.log('saveHistory', this.history.past)
       // 新操作使旧的"未来"分支失效，清空 future 栈
       this.history.future = []
-
       // 保持 past 栈在最大长度以内（移除最老的历史）
       if (this.history.past.length > this.history.maxSize) {
         this.history.past.shift()
@@ -212,7 +211,7 @@ export const useEditorStore = defineStore('editor', {
 
       // 将栈顶（当前状态）弹入 future 栈，以便后续重做
       this.history.future.push(this.history.past.pop()!)
-
+      console.log('undo', this.history.future)
       // 次栈顶为上一个状态，peek 后恢复
       const previousState = cloneSchema(this.history.past[this.history.past.length - 1])
       Object.assign(this.pageSchema, previousState)
