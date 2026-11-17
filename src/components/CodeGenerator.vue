@@ -23,6 +23,7 @@
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ComponentSchema, PageSettings } from '../core/schema/types'
+import { validateFormFieldKeys } from '../core/generator/FormConfigGenerator'
 
 const props = defineProps({
   components: {
@@ -389,7 +390,14 @@ const genAsyncWatchers = (): string => {
   return code
 }
 
-const generateCode = (): void => {
+const generateCode = (): boolean => {
+  const check = validateFormFieldKeys(props.components)
+  if (!check.valid) {
+    const names = check.missing.map((m) => m.label).join('、')
+    ElMessage.error(`以下字段未填写字段名称：${names}`)
+    return false
+  }
+
   // 清空上轮数据
   asyncOptionMap.clear()
 
@@ -470,6 +478,7 @@ const generateCode = (): void => {
 
   const code = template + script + style
   generatedCode.value = code
+  return true
 }
 
 const copyCode = (): void => {
@@ -483,7 +492,10 @@ const copyCode = (): void => {
 
 watch(() => props.showCodeDialog, (newVal: boolean) => {
   if (newVal) {
-    generateCode()
+    const ok = generateCode()
+    if (!ok) {
+      emit('update:showCodeDialog', false)
+    }
   }
 })
 </script>

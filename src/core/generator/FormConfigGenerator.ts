@@ -210,6 +210,40 @@ const generateField = (component: ComponentSchema): FieldConfig => {
 // 容器类型（需要递归展开子组件）
 const CONTAINER_TYPES: string[] = ['subform', 'block']
 
+export interface MissingFieldNameItem {
+  id: string
+  label: string
+}
+
+export interface ValidateFormFieldKeysResult {
+  valid: boolean
+  missing: MissingFieldNameItem[]
+}
+
+/** 校验所有表单字段的 fieldName 非空（递归容器子组件） */
+export function validateFormFieldKeys(components: ComponentSchema[]): ValidateFormFieldKeysResult {
+  const missing: MissingFieldNameItem[] = []
+
+  const walk = (list: ComponentSchema[]): void => {
+    list.forEach(component => {
+      if (CONTAINER_TYPES.includes(component.type) && component.children) {
+        walk(component.children)
+      } else if (FORM_COMPONENT_TYPES.includes(component.type)) {
+        const fieldName = String(component.props?.fieldName ?? '').trim()
+        if (!fieldName) {
+          missing.push({
+            id: component.id,
+            label: component.label || component.type
+          })
+        }
+      }
+    })
+  }
+
+  walk(components)
+  return { valid: missing.length === 0, missing }
+}
+
 // 递归收集所有表单字段（展平容器的 children）
 const collectFields = (components: ComponentSchema[]): FieldConfig[] => {
   const fields: FieldConfig[] = []

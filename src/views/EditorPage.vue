@@ -61,7 +61,7 @@
           </el-icon>
           导出表单模块
         </el-button>
-        <el-button type="primary" @click="showCodeDialog = true">
+        <el-button type="primary" @click="handleGenerateCode">
           <el-icon>
             <Document />
           </el-icon>
@@ -126,6 +126,7 @@ import {
   generateFormConfigTS,
   generateAsyncValidatorRules,
   generateFormLogicModule,
+  validateFormFieldKeys,
 } from "../core/generator/FormConfigGenerator";
 import { useEditorStore } from "../stores/editorStore";
 import type { ComponentSchema } from "../core/schema/types";
@@ -219,8 +220,25 @@ const showPreview = ref(false);
 // 代码生成弹窗状态
 const showCodeDialog = ref(false);
 
+/** 导出/生成前校验：表单字段 fieldName 必填 */
+const ensureFieldNames = (): boolean => {
+  const { valid, missing } = validateFormFieldKeys(editorStore.components);
+  if (!valid) {
+    const names = missing.map((m) => m.label).join("、");
+    ElMessage.error(`以下字段未填写字段名称：${names}`);
+    return false;
+  }
+  return true;
+};
+
+const handleGenerateCode = (): void => {
+  if (!ensureFieldNames()) return;
+  showCodeDialog.value = true;
+};
+
 // 导出Schema
 const handleExport = (): void => {
+  if (!ensureFieldNames()) return;
   const schema = editorStore.exportSchema();
   const dataStr = JSON.stringify(schema, null, 2);
   const dataBlob = new Blob([dataStr], { type: "application/json" });
@@ -304,6 +322,7 @@ const handleExportFormConfig = (): void => {
     ElMessage.warning("请先添加表单组件");
     return;
   }
+  if (!ensureFieldNames()) return;
   const jsCode = generateFormConfigJS(
     components,
     editorStore.pageSchema.settings,
@@ -325,6 +344,7 @@ const handleExportFormConfigTS = (): void => {
     ElMessage.warning("请先添加表单组件");
     return;
   }
+  if (!ensureFieldNames()) return;
   const tsCode = generateFormConfigTS(
     components,
     editorStore.pageSchema.settings,
@@ -346,6 +366,7 @@ const handleExportAsyncValidator = (): void => {
     ElMessage.warning("请先添加表单组件");
     return;
   }
+  if (!ensureFieldNames()) return;
   const tsCode = generateAsyncValidatorRules(
     components,
     editorStore.pageSchema.settings,
@@ -367,6 +388,7 @@ const handleExportFormModule = (): void => {
     ElMessage.warning("请先添加表单组件");
     return;
   }
+  if (!ensureFieldNames()) return;
   const settings = editorStore.pageSchema.settings;
   const tsCode = generateFormLogicModule(components, settings);
   // 推导文件名：formTitle 转驼峰
@@ -390,6 +412,7 @@ const handleExportFormModule = (): void => {
 
 // 导出数据结构
 const handleExportDataStructure = (): void => {
+  if (!ensureFieldNames()) return;
   const components = editorStore.components;
   const dataStructure: Record<string, any> = {};
 

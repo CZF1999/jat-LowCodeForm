@@ -89,6 +89,13 @@
       <div class="property-section">
         <h4>属性</h4>
         <el-form :model="selectedComponent.props" size="small">
+          <el-form-item v-if="isFormComponent" label="字段名称" required>
+            <el-input
+              v-model="selectedComponent.props.fieldName"
+              @input="updateComponent"
+              placeholder="必填，如 username"
+            />
+          </el-form-item>
           <template v-for="(value, key) in visibleProps" :key="key">
             <!-- 字符串类型 -->
             <el-form-item :label="getPropertyLabel(key)" v-if="typeof value === 'string'">
@@ -177,13 +184,6 @@
       <div class="property-section" v-if="isFormComponent">
         <h4>高级配置</h4>
         <el-form :model="selectedComponent.props" size="small">
-          <el-form-item label="字段 Key">
-            <el-input
-              v-model="selectedComponent.props.fieldName"
-              @input="updateComponent"
-              placeholder="留空则自动生成"
-            />
-          </el-form-item>
           <el-form-item label="依赖字段 (pidField)" v-if="['select','cascader'].includes(selectedComponent.type)">
             <el-select
               v-model="selectedComponent.props.pidField"
@@ -349,7 +349,7 @@ const siblingFields = computed(() => {
 // 已在专用区域配置的属性，不需要在通用「属性」区重复显示
 const SKIP_PROPS: Set<string> = new Set([
   'span',             // → 布局配置
-  'fieldName',        // → 高级配置
+  'fieldName',        // → 属性区第一项「字段名称」
   'pidField',         // → 高级配置
   'visibleCondition', // → 高级配置
   'optionsType',      // → 高级配置
