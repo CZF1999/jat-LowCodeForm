@@ -35,7 +35,7 @@ const props = defineProps({
   },
   pageSettings: {
     type: Object as () => PageSettings,
-    default: () => ({ layout: 'vertical', columns: 2 } as PageSettings)
+    default: () => ({ layout: 'vertical' } as PageSettings)
   }
 })
 
