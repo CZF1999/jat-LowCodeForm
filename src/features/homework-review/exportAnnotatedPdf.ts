@@ -69,19 +69,119 @@ const SKIP_TEXT_CLOSEST =
  * Unbreakable paper blocks (include padding/border). Topic sections may still
  * span pages — we do NOT protect whole `.topic-block` / `#box_*`.
  */
+/** Bordered units only — stems/answer rows use line spans so questions can span pages. */
 export const ATOMIC_BLOCK_SELECTOR =
   '.option, .topic-type, .ks-box, .zq-box, .answer-table, .exam-scope'
 
+/** Media / table boxes that must not be sliced through the middle. */
+export const MEDIA_BLOCK_SELECTOR = 'img, figure, table'
+
+/**
+ * Annotation chrome boxes protected as atomic units (borders stay intact).
+ * Text inside these is still skipped by collectTextLineSpans via SKIP_TEXT_CLOSEST.
+ */
+export const ANNOTATION_BOX_SELECTOR = '.callout-box, .textbox'
+
+/** Any selector whose box is collected as an unbreakable protected span. */
+export const UNBREAKABLE_BOX_SELECTOR = [
+  ATOMIC_BLOCK_SELECTOR,
+  MEDIA_BLOCK_SELECTOR,
+  ANNOTATION_BOX_SELECTOR,
+].join(', ')
+
 /** Safety pad so subpixel / scale rounding does not miss an ink line or border. */
 const SPAN_PAD_PX = 2
+/** Extra pad for bordered atomic/media boxes so top/bottom borders are not left on the previous page. */
+const BOX_SPAN_PAD_PX = 5
+/** Minimum half-leading pad for text lines (ink box is often shorter than line-height). */
+const TEXT_LINE_PAD_MIN_PX = 6
 const A4_WIDTH_MM = 210
 const A4_HEIGHT_MM = 297
 const PAGE_MARGIN_MM = 8
+const PAGE_LABEL_HEIGHT_MM = 6
+
+/** Freeze A4 page step in CSS px from capture width (do not recompute after spacers). */
+export function measurePageStepCssPx(
+  cssWidth: number,
+  contentWidthMm = A4_WIDTH_MM - PAGE_MARGIN_MM * 2,
+  contentHeightMm = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2,
+): number {
+  const w = Math.max(cssWidth, 1)
+  return contentHeightMm / (contentWidthMm / w)
+}
+
+/** Vertical pad for a text line from parent line-height (≈ half leading). */
+export function textLinePadPx(parent: HTMLElement | null): number {
+  if (!parent || typeof window === 'undefined') {
+    return Math.max(SPAN_PAD_PX, TEXT_LINE_PAD_MIN_PX)
+  }
+  const style = window.getComputedStyle(parent)
+  const lhRaw = style.lineHeight
+  const lh = parseFloat(lhRaw)
+  if (lhRaw === 'normal' || !Number.isFinite(lh)) {
+    const fs = parseFloat(style.fontSize) || 14
+    return Math.max(SPAN_PAD_PX, TEXT_LINE_PAD_MIN_PX, Math.ceil(fs * 0.5))
+  }
+  return Math.max(SPAN_PAD_PX, TEXT_LINE_PAD_MIN_PX, Math.ceil(lh * 0.5))
+}
+
+function collectSelectorSpans(
+  contentRoot: HTMLElement,
+  origin: HTMLElement,
+  selector: string,
+): VerticalSpan[] {
+  const originRect = origin.getBoundingClientRect()
+  const spans: VerticalSpan[] = []
+  contentRoot.querySelectorAll(selector).forEach((node) => {
+    const el = node as HTMLElement
+    const rect = el.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return
+    spans.push({
+      top: rect.top - originRect.top - BOX_SPAN_PAD_PX,
+      bottom: rect.bottom - originRect.top + BOX_SPAN_PAD_PX,
+    })
+  })
+  return mergeSpans(spans)
+}
+
+/**
+ * Merge only near-duplicate rects (same line reported twice). Adjacent visual
+ * lines stay separate so page cuts can land on each line top.
+ */
+export function mergeNearDuplicateSpans(
+  spans: VerticalSpan[],
+  epsilon = 1.5,
+): VerticalSpan[] {
+  if (spans.length === 0) return []
+  const sorted = spans
+    .map((s) => ({
+      top: Math.min(s.top, s.bottom),
+      bottom: Math.max(s.top, s.bottom),
+    }))
+    .sort((a, b) => a.top - b.top || a.bottom - b.bottom)
+
+  const out: VerticalSpan[] = [{ ...sorted[0] }]
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i]
+    const last = out[out.length - 1]
+    const sameLine =
+      Math.abs(cur.top - last.top) <= epsilon &&
+      Math.abs(cur.bottom - last.bottom) <= epsilon
+    if (sameLine) {
+      last.top = Math.min(last.top, cur.top)
+      last.bottom = Math.max(last.bottom, cur.bottom)
+    } else {
+      out.push({ ...cur })
+    }
+  }
+  return out
+}
 
 /**
  * Collect visual text-line boxes from paper content (CSS px, relative to `origin`).
  * Prefer `origin` = capture wrap so coordinates match the screenshot bitmap.
- * Skips text inside annotation chrome and inside atomic bordered blocks.
+ * Skips text inside annotation chrome and inside unbreakable boxes.
+ * Adjacent lines are NOT merged — only duplicate rects collapse.
  */
 export function collectTextLineSpans(
   contentRoot: HTMLElement,
@@ -100,24 +200,25 @@ export function collectTextLineSpans(
       continue
     }
     const parent = text.parentElement
-    if (parent?.closest(SKIP_TEXT_CLOSEST) || parent?.closest(ATOMIC_BLOCK_SELECTOR)) {
+    if (parent?.closest(SKIP_TEXT_CLOSEST) || parent?.closest(UNBREAKABLE_BOX_SELECTOR)) {
       current = walker.nextNode()
       continue
     }
 
+    const pad = textLinePadPx(parent)
     const range = document.createRange()
     range.selectNodeContents(text)
     for (const rect of Array.from(range.getClientRects())) {
       if (rect.width <= 0 || rect.height <= 0) continue
       spans.push({
-        top: rect.top - originRect.top - SPAN_PAD_PX,
-        bottom: rect.bottom - originRect.top + SPAN_PAD_PX,
+        top: rect.top - originRect.top - pad,
+        bottom: rect.bottom - originRect.top + pad,
       })
     }
     current = walker.nextNode()
   }
 
-  return mergeSpans(spans)
+  return mergeNearDuplicateSpans(spans)
 }
 
 /** Full element boxes for bordered / titled units that must not be sliced. */
@@ -125,31 +226,42 @@ export function collectAtomicBlockSpans(
   contentRoot: HTMLElement,
   origin: HTMLElement,
 ): VerticalSpan[] {
-  const originRect = origin.getBoundingClientRect()
-  const spans: VerticalSpan[] = []
-  contentRoot.querySelectorAll(ATOMIC_BLOCK_SELECTOR).forEach((node) => {
-    const el = node as HTMLElement
-    const rect = el.getBoundingClientRect()
-    if (rect.width <= 0 || rect.height <= 0) return
-    spans.push({
-      top: rect.top - originRect.top - SPAN_PAD_PX,
-      bottom: rect.bottom - originRect.top + SPAN_PAD_PX,
-    })
-  })
-  return mergeSpans(spans)
+  return collectSelectorSpans(contentRoot, origin, ATOMIC_BLOCK_SELECTOR)
+}
+
+/** Image / figure / table border boxes. */
+export function collectMediaBlockSpans(
+  contentRoot: HTMLElement,
+  origin: HTMLElement,
+): VerticalSpan[] {
+  return collectSelectorSpans(contentRoot, origin, MEDIA_BLOCK_SELECTOR)
+}
+
+/** Callout / textbox chrome boxes (keep borders intact across page cuts). */
+export function collectAnnotationBoxSpans(
+  contentRoot: HTMLElement,
+  origin: HTMLElement,
+): VerticalSpan[] {
+  return collectSelectorSpans(contentRoot, origin, ANNOTATION_BOX_SELECTOR)
 }
 
 /**
- * Protected Y spans for PDF slicing: atomic bordered blocks + text lines outside them.
+ * Protected Y spans for PDF slicing: unbreakable boxes + text lines outside them.
+ * Annotation chrome is scanned on `origin` (capture wrap / stage) because callouts
+ * usually sit as overlays outside the paper content root.
  */
 export function collectProtectedSpans(
   contentRoot: HTMLElement,
   origin: HTMLElement,
 ): VerticalSpan[] {
-  return mergeSpans([
+  const boxes = mergeSpans([
     ...collectAtomicBlockSpans(contentRoot, origin),
-    ...collectTextLineSpans(contentRoot, origin),
+    ...collectMediaBlockSpans(contentRoot, origin),
+    ...collectAnnotationBoxSpans(origin, origin),
   ])
+  const lines = collectTextLineSpans(contentRoot, origin)
+  // Do not mergeSpans boxes with lines — overlapping pads would glue lines together.
+  return [...boxes, ...lines].sort((a, b) => a.top - b.top || a.bottom - b.bottom)
 }
 
 /** Merge only strictly overlapping ranges; touching endpoints stay separate for cut gaps. */
@@ -177,6 +289,8 @@ export function mergeSpans(spans: VerticalSpan[]): VerticalSpan[] {
 
 /**
  * Pack page end Y positions (exclusive) so cuts avoid protected span interiors.
+ * Never hard-cuts through a protected block: keep-together at block top, or give
+ * an oversized block its own page band ending at block bottom (scale-fit later).
  * When `cssToImageScale === 1`, units are CSS px (preferred for per-page capture).
  */
 export function computeSliceEnds(
@@ -208,26 +322,56 @@ export function computeSliceEnds(
     if (blocking) {
       const above = blocking.top
       const below = Math.min(blocking.bottom, contentHeight)
-      if (above > cursor + 8) {
-        cut = above
-      } else if (below - cursor <= maxPageHeight + 0.5) {
-        cut = below
-      } else if (above > cursor + 1) {
+      if (above > cursor + 1) {
+        // Keep-together: end the page before the protected block.
         cut = above
       } else {
-        cut = ideal
+        // Block starts at (or above) cursor and is taller than the page —
+        // dedicate this page band to the whole block; never slice its interior.
+        cut = below
       }
     }
 
     if (cut <= cursor + 1) {
-      cut = Math.min(cursor + maxPageHeight, contentHeight)
+      // Last resort: jump to next protected boundary below cursor — never invent
+      // a mid-span hard cut when a protected range still covers the ideal seam.
+      const nextBoundary = protectedScaled
+        .map((s) => s.bottom)
+        .filter((b) => b > cursor + 1)
+        .sort((a, b) => a - b)[0]
+      cut = Math.min(nextBoundary ?? cursor + maxPageHeight, contentHeight)
+      if (cut <= cursor + 1) {
+        cut = Math.min(cursor + maxPageHeight, contentHeight)
+      }
     }
+
+    // Integer CSS px seams avoid subpixel clip through glyph ink.
+    cut = Math.min(contentHeight, Math.max(cursor + 1, Math.round(cut)))
 
     ends.push(cut)
     cursor = cut
   }
 
   return ends
+}
+
+/**
+ * Fit a page-band size into the A4 content box (mm). Scales down when the band
+ * is taller/wider than the printable area; never crops.
+ */
+export function fitPageBandToA4(
+  bandWidthMm: number,
+  bandHeightMm: number,
+  contentWidthMm: number,
+  contentHeightMm: number,
+): { drawW: number; drawH: number } {
+  const w = Math.max(bandWidthMm, 0.01)
+  const h = Math.max(bandHeightMm, 0.01)
+  const scale = Math.min(1, contentWidthMm / w, contentHeightMm / h)
+  return {
+    drawW: w * scale,
+    drawH: h * scale,
+  }
 }
 
 /** CSS-px page ends from protected spans (no bitmap scale). */
@@ -237,6 +381,336 @@ export function packPageEnds(
   protectedCss: VerticalSpan[],
 ): number[] {
   return computeSliceEnds(cssHeight, maxPageCssPx, protectedCss, 1)
+}
+
+/**
+ * If a cut falls inside any protected span (text line or bordered box like
+ * `.option`), snap it to that span's top so glyphs/borders are never bisected.
+ */
+export function snapCutsOutsideProtectedSpans(
+  ends: number[],
+  protectedSpans: VerticalSpan[],
+  contentHeight: number,
+): number[] {
+  if (ends.length === 0) return ends
+  const spans = protectedSpans
+    .map((s) => ({
+      top: Math.min(s.top, s.bottom),
+      bottom: Math.max(s.top, s.bottom),
+    }))
+    .sort((a, b) => a.top - b.top)
+
+  const out: number[] = []
+  let prev = 0
+  for (const raw of ends) {
+    let cut = raw
+    if (cut < contentHeight - 0.5) {
+      const hit = spans.find((s) => cut > s.top + 0.5 && cut < s.bottom - 0.5)
+      if (hit && hit.top > prev + 1) {
+        cut = hit.top
+      }
+    }
+    cut = Math.min(contentHeight, Math.max(prev + 1, Math.round(cut)))
+    if (out.length === 0 || cut > out[out.length - 1]) {
+      out.push(cut)
+    }
+    prev = cut
+  }
+  if (out.length === 0 || Math.abs(out[out.length - 1] - contentHeight) > 0.5) {
+    out.push(contentHeight)
+  } else {
+    out[out.length - 1] = contentHeight
+  }
+  return out
+}
+
+/** @deprecated Prefer snapCutsOutsideProtectedSpans (boxes + lines). */
+export function snapCutsOutsideTextLines(
+  ends: number[],
+  textLineSpans: VerticalSpan[],
+  contentHeight: number,
+): number[] {
+  return snapCutsOutsideProtectedSpans(ends, textLineSpans, contentHeight)
+}
+
+/** Page footer label, e.g. 第 2 / 5 页 */
+export function formatPageLabel(pageIndex1Based: number, totalPages: number): string {
+  return `第 ${pageIndex1Based} / ${totalPages} 页`
+}
+
+/** Rasterize a Chinese-capable page label (jsPDF default fonts lack CJK). */
+export function renderPageLabelCanvas(label: string, widthPx: number, heightPx = 36): HTMLCanvasElement {
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(widthPx))
+  c.height = Math.max(1, Math.round(heightPx))
+  const ctx = c.getContext('2d')
+  if (ctx) {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, c.width, c.height)
+    ctx.fillStyle = '#666666'
+    ctx.font = '14px "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(label, c.width / 2, c.height / 2)
+  }
+  return c
+}
+
+/** Map a CSS-Y band to canvas pixel rows (inclusive start, exclusive end). */
+export function bandPixelRange(
+  cssY0: number,
+  cssY1: number,
+  cssToCanvasScale: number,
+  fullCanvasHeight: number,
+): { y0: number; y1: number; h: number } {
+  const y0 = Math.max(0, Math.round(cssY0 * cssToCanvasScale))
+  const y1 = Math.min(fullCanvasHeight, Math.round(cssY1 * cssToCanvasScale))
+  return { y0, y1, h: Math.max(1, y1 - y0) }
+}
+
+/** Crop a CSS-Y band from a full-document canvas (pixel-aligned with pack seams). */
+export function cropCanvasBand(
+  full: HTMLCanvasElement,
+  cssY0: number,
+  cssY1: number,
+  cssToCanvasScale: number,
+): HTMLCanvasElement {
+  const { y0, h } = bandPixelRange(cssY0, cssY1, cssToCanvasScale, full.height)
+  const page = document.createElement('canvas')
+  page.width = full.width
+  page.height = h
+  const ctx = page.getContext('2d')
+  if (!ctx) {
+    throw new Error('无法创建分页画布')
+  }
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, page.width, page.height)
+  ctx.drawImage(full, 0, y0, full.width, h, 0, 0, full.width, h)
+  return page
+}
+
+/** Fixed-step page ends (used after spacers have pushed breaks into gaps). */
+export function packFixedPageEnds(cssHeight: number, maxPageCssPx: number): number[] {
+  if (cssHeight <= 0) return [0]
+  if (maxPageCssPx <= 0) return [cssHeight]
+  const ends: number[] = []
+  let y = maxPageCssPx
+  while (y < cssHeight - 0.5) {
+    ends.push(y)
+    y += maxPageCssPx
+  }
+  ends.push(cssHeight)
+  return ends
+}
+
+export const PAGE_SPACER_ATTR = 'data-export-page-spacer'
+
+/** Height to push a straddling block so its top lands on the next page. */
+export function computePushSpacerHeight(pageEnd: number, blockTop: number): number {
+  return Math.max(0, pageEnd - blockTop)
+}
+
+/** Whether this protected span should get a push-spacer at the given page seam. */
+export function shouldInsertPushSpacer(
+  cursor: number,
+  pageEnd: number,
+  span: VerticalSpan,
+): boolean {
+  const straddles = pageEnd > span.top + 0.5 && pageEnd < span.bottom - 0.5
+  const canPush = span.top > cursor + 1
+  return straddles && canPush
+}
+
+function createPageSpacer(heightPx: number): HTMLDivElement {
+  const el = document.createElement('div')
+  el.setAttribute(PAGE_SPACER_ATTR, '1')
+  el.setAttribute('aria-hidden', 'true')
+  el.style.cssText = [
+    'display:block',
+    'width:100%',
+    `height:${Math.ceil(heightPx)}px`,
+    'margin:0',
+    'padding:0',
+    'border:0',
+    'pointer-events:none',
+    'flex-shrink:0',
+  ].join(';')
+  return el
+}
+
+function measureOriginHeight(origin: HTMLElement): number {
+  return Math.max(origin.scrollHeight, origin.clientHeight, 1)
+}
+
+/**
+ * Find a DOM node to insert a spacer before, matching a protected Y span.
+ * Prefers unbreakable boxes; falls back to a block-level ancestor of a text line.
+ */
+export function findAnchorForProtectedSpan(
+  contentRoot: HTMLElement,
+  origin: HTMLElement,
+  span: VerticalSpan,
+): HTMLElement | null {
+  const originRect = origin.getBoundingClientRect()
+  const candidates = new Set<HTMLElement>()
+  contentRoot.querySelectorAll(UNBREAKABLE_BOX_SELECTOR).forEach((n) => {
+    candidates.add(n as HTMLElement)
+  })
+  origin.querySelectorAll(ANNOTATION_BOX_SELECTOR).forEach((n) => {
+    candidates.add(n as HTMLElement)
+  })
+
+  let best: HTMLElement | null = null
+  let bestDelta = Infinity
+  for (const el of candidates) {
+    if (el.hasAttribute(PAGE_SPACER_ATTR)) continue
+    const r = el.getBoundingClientRect()
+    if (r.width <= 0 || r.height <= 0) continue
+    const top = r.top - originRect.top - BOX_SPAN_PAD_PX
+    const bottom = r.bottom - originRect.top + BOX_SPAN_PAD_PX
+    const overlaps =
+      top < span.bottom - 0.5 && bottom > span.top + 0.5 &&
+      Math.abs(top - span.top) <= BOX_SPAN_PAD_PX + 4
+    if (!overlaps) continue
+    const delta = Math.abs(top - span.top) + Math.abs(bottom - span.bottom)
+    if (delta < bestDelta) {
+      bestDelta = delta
+      best = el
+    }
+  }
+  if (best) return best
+
+  // Text-line fallback: climb to a block-ish ancestor inside contentRoot.
+  const walker = document.createTreeWalker(contentRoot, NodeFilter.SHOW_TEXT)
+  let current = walker.nextNode()
+  while (current) {
+    const text = current as Text
+    if (!text.data?.trim()) {
+      current = walker.nextNode()
+      continue
+    }
+    const parent = text.parentElement
+    if (parent?.closest(SKIP_TEXT_CLOSEST) || parent?.closest(UNBREAKABLE_BOX_SELECTOR)) {
+      current = walker.nextNode()
+      continue
+    }
+    const range = document.createRange()
+    range.selectNodeContents(text)
+    for (const rect of Array.from(range.getClientRects())) {
+      if (rect.width <= 0 || rect.height <= 0) continue
+      const top = rect.top - originRect.top - SPAN_PAD_PX
+      const bottom = rect.bottom - originRect.top + SPAN_PAD_PX
+      if (Math.abs(top - span.top) > SPAN_PAD_PX + 4) continue
+      if (Math.abs(bottom - span.bottom) > SPAN_PAD_PX + 4) continue
+      let anchor: HTMLElement | null = parent
+      while (anchor && anchor !== contentRoot) {
+        const display = window.getComputedStyle(anchor).display
+        if (
+          display === 'block' ||
+          display === 'list-item' ||
+          display === 'table' ||
+          display === 'flex' ||
+          display === 'grid' ||
+          anchor.tagName === 'P' ||
+          anchor.tagName === 'LI' ||
+          anchor.tagName === 'DIV'
+        ) {
+          return anchor
+        }
+        anchor = anchor.parentElement
+      }
+      return parent
+    }
+    current = walker.nextNode()
+  }
+  return null
+}
+
+export interface InsertPageSpacersOptions {
+  contentRoot: HTMLElement
+  origin: HTMLElement
+  maxPageCssPx: number
+  relayout?: () => void
+  maxIterations?: number
+}
+
+/**
+ * Insert fixed-height spacers before small unbreakable units that would be
+ * sliced by a page seam, pushing them onto the next page (granularity B).
+ * Returns the number of spacers inserted.
+ */
+export function insertPageSpacersForBreaks(options: InsertPageSpacersOptions): number {
+  const { contentRoot, origin, maxPageCssPx, relayout } = options
+  const maxIterations = options.maxIterations ?? 200
+  if (maxPageCssPx <= 0) return 0
+
+  let inserted = 0
+  let cursor = 0
+  let iterations = 0
+
+  while (iterations++ < maxIterations) {
+    const cssHeight = measureOriginHeight(origin)
+    if (cursor >= cssHeight - 0.5) break
+
+    const pageEnd = cursor + maxPageCssPx
+    if (pageEnd >= cssHeight - 0.5) break
+
+    const protectedSpans = collectProtectedSpans(contentRoot, origin)
+    const blocking = protectedSpans.find(
+      (s) => pageEnd > s.top + 0.5 && pageEnd < s.bottom - 0.5,
+    )
+
+    if (!blocking || !shouldInsertPushSpacer(cursor, pageEnd, blocking)) {
+      cursor = pageEnd
+      continue
+    }
+
+    const height = computePushSpacerHeight(pageEnd, blocking.top)
+    if (height < 1) {
+      cursor = pageEnd
+      continue
+    }
+
+    const anchor = findAnchorForProtectedSpan(contentRoot, origin, blocking)
+    if (!anchor || !anchor.parentElement) {
+      // No DOM anchor (e.g. bare text line) — leave seam to packPageEnds line tops.
+      cursor = pageEnd
+      continue
+    }
+
+    const originRect = origin.getBoundingClientRect()
+    const anchorTop = anchor.getBoundingClientRect().top - originRect.top
+    // Multi-line block whose top is above the straddling line: pushing the whole
+    // block would yank earlier lines off this page. Defer to packPageEnds.
+    if (anchorTop < blocking.top - 8) {
+      cursor = pageEnd
+      continue
+    }
+
+    const prev = anchor.previousElementSibling as HTMLElement | null
+    if (prev?.hasAttribute(PAGE_SPACER_ATTR)) {
+      // Already pushed this block once; further seams use packPageEnds at line tops.
+      cursor = pageEnd
+      continue
+    }
+
+    const spacer = createPageSpacer(height)
+    anchor.parentElement.insertBefore(spacer, anchor)
+    inserted += 1
+    relayout?.()
+    // Block top should now sit near pageEnd; continue from the next page.
+    cursor = pageEnd
+  }
+
+  return inserted
+}
+
+/** Remove all export page spacers under `root`. Returns how many were removed. */
+export function removePageSpacers(root: HTMLElement | null): number {
+  if (!root) return 0
+  const nodes = Array.from(root.querySelectorAll(`[${PAGE_SPACER_ATTR}]`))
+  for (const node of nodes) node.remove()
+  return nodes.length
 }
 
 function waitFrames(count = 2): Promise<void> {
@@ -371,61 +845,8 @@ function screenshotFilter(node: Node): boolean {
 }
 
 /**
- * Clip `source` into a fixed-height viewport and screenshot one CSS page band.
- * Uses translateY so cuts happen between packed ranges — not mid-bitmap slicing.
- */
-async function captureCssPageBand(
-  source: HTMLElement,
-  y0: number,
-  y1: number,
-  scale: number,
-): Promise<HTMLCanvasElement> {
-  const pageH = Math.max(1, y1 - y0)
-  const pageW = Math.max(source.scrollWidth, source.clientWidth, 1)
-  const parent = source.parentElement
-  if (!parent) {
-    throw new Error('导出截图容器缺少父节点')
-  }
-
-  const viewport = document.createElement('div')
-  viewport.dataset.exportPageViewport = '1'
-  viewport.style.cssText = [
-    'overflow:hidden',
-    'position:relative',
-    'background:#ffffff',
-    `width:${pageW}px`,
-    `height:${pageH}px`,
-    'box-sizing:border-box',
-  ].join(';')
-
-  const prevTransform = source.style.transform
-  const prevWillChange = source.style.willChange
-
-  parent.insertBefore(viewport, source)
-  viewport.appendChild(source)
-  source.style.transform = `translateY(${-y0}px)`
-  source.style.willChange = 'transform'
-
-  try {
-    await waitFrames(1)
-    return await domToCanvas(viewport, {
-      scale,
-      width: pageW,
-      height: pageH,
-      backgroundColor: '#ffffff',
-      filter: screenshotFilter,
-    })
-  } finally {
-    source.style.transform = prevTransform
-    source.style.willChange = prevWillChange
-    parent.insertBefore(source, viewport)
-    viewport.remove()
-  }
-}
-
-/**
- * Prepare export → bake marks → CSS-pack pages at protected gaps →
- * per-page screenshot into A4 PDF → download.
+ * Prepare export → bake → spacer push-breaks → pack page seams →
+ * one full-document screenshot → pixel-crop bands into A4 PDF.
  */
 export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Promise<void> {
   const { surface, surfaceMode } = options
@@ -460,19 +881,49 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
   const { wrap, unwrap } = wrapStageForCapture(root)
   await waitFrames(1)
 
+  const textRoot = contentRoot ?? root
+
   try {
     const contentWidthMm = A4_WIDTH_MM - PAGE_MARGIN_MM * 2
-    const contentHeightMm = A4_HEIGHT_MM - PAGE_MARGIN_MM * 2
-    const textRoot = contentRoot ?? root
+    // Reserve footer strip for page labels so content bands never cover them.
+    const contentHeightMm =
+      A4_HEIGHT_MM - PAGE_MARGIN_MM * 2 - PAGE_LABEL_HEIGHT_MM
 
     const cssWidth = Math.max(wrap.scrollWidth, wrap.clientWidth, 1)
-    const cssHeight = Math.max(wrap.scrollHeight, wrap.clientHeight, 1)
+    // Freeze page step BEFORE spacers so insert seams and packPageEnds stay aligned.
+    const maxPageCssPx = measurePageStepCssPx(cssWidth, contentWidthMm, contentHeightMm)
     const mmPerCssPx = contentWidthMm / cssWidth
-    const maxPageCssPx = contentHeightMm / mmPerCssPx
 
-    // Pack in CSS space first — cuts only at gaps between unbreakable units.
+    // Push straddling small blocks onto the next page with fixed-height spacers.
+    insertPageSpacersForBreaks({
+      contentRoot: textRoot,
+      origin: wrap,
+      maxPageCssPx,
+      relayout: () => {
+        surface.relayoutForExport?.()
+        expandStageForOverflow(root)
+      },
+    })
+    await waitFrames(1)
+
+    // Spacers only grow height — keep frozen maxPageCssPx (do not recompute from width).
+    const cssHeight = Math.max(wrap.scrollHeight, wrap.clientHeight, 1)
+
     const protectedSpans = collectProtectedSpans(textRoot, wrap)
-    const pageEnds = packPageEnds(cssHeight, maxPageCssPx, protectedSpans)
+    const packedEnds = packPageEnds(cssHeight, maxPageCssPx, protectedSpans)
+    // Snap out of option boxes and text lines so borders/glyphs are not bisected.
+    const pageEnds = snapCutsOutsideProtectedSpans(packedEnds, protectedSpans, cssHeight)
+    const totalPages = pageEnds.length
+
+    // One full-document shot; page bands are pixel crops so seams match ink.
+    const fullCanvas = await domToCanvas(wrap, {
+      scale,
+      width: cssWidth,
+      height: cssHeight,
+      backgroundColor: '#ffffff',
+      filter: screenshotFilter,
+    })
+    const cssToCanvasScale = fullCanvas.height / Math.max(cssHeight, 1)
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -485,14 +936,31 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
     for (let i = 0; i < pageEnds.length; i++) {
       const yEnd = pageEnds[i]
       const pageCssH = Math.max(1, yEnd - yStart)
-      const pageCanvas = await captureCssPageBand(wrap, yStart, yEnd, scale)
+      const pageCanvas = cropCanvasBand(fullCanvas, yStart, yEnd, cssToCanvasScale)
 
-      const drawW = contentWidthMm
-      const drawH = pageCssH * mmPerCssPx
+      const bandW = contentWidthMm
+      const bandH = pageCssH * mmPerCssPx
+      const { drawW, drawH } = fitPageBandToA4(
+        bandW,
+        bandH,
+        contentWidthMm,
+        contentHeightMm,
+      )
       const dataUrl = pageCanvas.toDataURL('image/jpeg', 0.92)
 
       if (i > 0) pdf.addPage()
       pdf.addImage(dataUrl, 'JPEG', PAGE_MARGIN_MM, PAGE_MARGIN_MM, drawW, drawH)
+
+      const label = formatPageLabel(i + 1, totalPages)
+      const labelCanvas = renderPageLabelCanvas(label, Math.max(120, fullCanvas.width * 0.35))
+      pdf.addImage(
+        labelCanvas.toDataURL('image/png'),
+        'PNG',
+        PAGE_MARGIN_MM,
+        A4_HEIGHT_MM - PAGE_MARGIN_MM - PAGE_LABEL_HEIGHT_MM,
+        contentWidthMm,
+        PAGE_LABEL_HEIGHT_MM,
+      )
 
       yStart = yEnd
     }
@@ -501,9 +969,12 @@ export async function exportAnnotatedPdf(options: ExportAnnotatedPdfOptions): Pr
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     downloadBlob(blob, `homework-annotated-${surfaceMode}-${stamp}.pdf`)
   } finally {
+    removePageSpacers(wrap)
+    removePageSpacers(root)
     bakeHandle?.restore()
     root.classList.remove('is-baking-marks')
     unwrap()
     surface.restoreExport()
   }
 }
+

@@ -390,42 +390,70 @@ generateCode()
 
 **面试重点**：为什么代码生成器不做 SSR 而用字符串拼接？（目标不同——SSR 为了渲染到 DOM，代码生成为了输出可读源码；字符串拼接更灵活、不耦合框架）
 
-### 4.2 JS/TS 表单配置导出
+### 4.2 JS/TS 表单配置导出（精读）
 
-**文件**：`src/core/generator/FormConfigGenerator.ts`
+**文件**：`src/core/generator/FormConfigGenerator.ts`  
+**入口**：`EditorPage.vue` 的「导出 JS 配置 / 导出 TS 配置」→ `ensureFieldNames()` → `generateFormConfigJS` / `generateFormConfigTS` → Blob 下载。
 
-**与 CodeGenerator 的区别**：输出不是完整的 Vue 组件代码，而是声明式配置对象（及 JS/TS 源码字符串），供运行时动态表单渲染器消费。
+**与 CodeGenerator 的区别**：输出不是完整 Vue SFC，而是声明式 `FormConfig`（及可 `import` 的 JS/TS 模块），供业务工程 / 动态表单渲染器消费。  
+**与 Schema JSON「导出」的区别**：Schema 是设计态整页真源（可回显画布）；FormConfig 是运行时瘦协议（扁平 fields，丢掉 id/styles/events 等编辑态私货）。
 
-**核心函数**：
+#### 总流程
 
-- `generateFormConfig(components, pageSettings)` — 生成配置数据对象
-- `generateFormConfigJS(components, pageSettings)` — 生成 JS 源码字符串
-- `generateFormConfigTS(components, pageSettings)` — 生成 TS 源码字符串
-- `toJS(value, indent)` — **自定义 JS 序列化器**（关键创新点）
-
-**toJS 的巧妙设计**：
-
-```javascript
-// 普通 JSON.stringify 输出：{ "key": "value" }
-// toJS 输出：{ key: 'value' }
-
-// 函数体字符串 → 直接输出代码（不套引号）
-if (isCodeExpression(value)) return value  // → async (_, form) => { ... }
-
-// 合法标识符 → 不加引号
-if (isValidIdentifier(k)) key = k  // → key: 而非 "key":
+```
+EditorPage 点导出 JS/TS
+  → ensureFieldNames / validateFormFieldKeys（fieldName 必填）
+  → generateFormConfigJS | generateFormConfigTS
+       → generateFormConfig（造数据对象，JS/TS 共用）
+            → collectFields（树 → 扁平 fields）
+                 → generateField（单字段映射）
+       → toJS(config)（对象 → 源码字符串）
+  → JS：const + export default
+  → TS：内联 interface + 类型注解 + export default
 ```
 
-**面试重点**：为什么不用 `JSON.stringify()`？（JSON 中函数体只能存为字符串，运行时需 `eval()` 还原；JS/TS 文件中函数体是真实代码，需要自研序列化器来区分"代码字符串"和"数据字符串"）
+**一句话**：先做与 JSON 同源的协议对象，再用 `toJS` 做成可 import 的模块；TS 只多内联类型，不是另一套字段映射。
 
-**递归容器处理**：
+#### 步骤 1：导出前校验 `validateFormFieldKeys`
+
+递归走组件树：
+
+| 节点 | 行为 |
+|------|------|
+| `subform` / `block` | 进入 `children` 继续 |
+| `FORM_COMPONENT_TYPES`（input/select/…） | `props.fieldName` trim 后必须非空 |
+| button / divider 等 | 忽略 |
+
+失败则列出缺「字段名称」的项并中止下载，避免导出 `key` 落到 `label`/`type` 兜底的不稳定路径（`getFieldKey` 仍有 fallback，但 UI 已拦住空 fieldName）。
+
+#### 步骤 2：`generateFormConfig` 造数据对象（JS/TS 共用）
+
+**顶层**：
+
+- `formTitle` ← `pageSettings.formTitle || 'form'`
+- `formKey`：标题转近似驼峰（去空格/`_`/`-`，首字母小写），作为外层对象键
+- `layout` ← `pageSettings.layout || 'grid'`
+
+结果形状：
+
+```ts
+{
+  [formKey]: {
+    title: formTitle,
+    layout: 'grid' | 'inline' | 'vertical',
+    fields: FieldConfig[]
+  }
+}
+```
+
+**`collectFields`：树 → 扁平字段列表**
 
 ```javascript
 const collectFields = (components) => {
   const fields = []
   components.forEach(component => {
     if (CONTAINER_TYPES.includes(component.type) && component.children) {
-      fields.push(...collectFields(component.children))  // 递归展开
+      fields.push(...collectFields(component.children))  // 容器本身不进 fields
     } else if (FORM_COMPONENT_TYPES.includes(component.type)) {
       fields.push(generateField(component))
     }
@@ -435,7 +463,88 @@ const collectFields = (components) => {
 }
 ```
 
+运行时配置是扁平 `fields[]`；设计态容器层级被摊平。
+
+**`generateField`：`ComponentSchema` → `FieldConfig`（有值才写，保持瘦）**
+
+1. **`key`**：`props.fieldName || label || type`（`getFieldKey`）
+2. **`label`**：显示名
+3. **`type`**：组件类型字符串
+4. **`span`**：仅当 `props.span` 存在且 **≠ 24**（默认整行不写）
+5. **`pidField`**：级联/依赖父字段
+6. **`visible`**：来自 `props.visibleCondition`（函数体字符串）
+7. **`options`**：仅 select/radio/checkbox/cascader  
+   - `optionsType === 'async'` → `optionsApi` 字符串（后续 `toJS` 可能当代码吐出）  
+   - 否则静态 `options` 数组
+8. **`rules`**：`generateRules(validation)` → Element Plus / async-validator 风格数组
+9. **`props`**：`filterOutputProps`  
+   - 去掉 `META_PROPS`：`fieldName`、`span`、`pidField`、`visibleCondition`、`optionsType`、`optionsApi`、`options`、`defaultValue`（已提升到 FieldConfig 顶层或另处理）  
+   - 去掉 `undefined` / 空字符串  
+   - 留下 placeholder、disabled、size、multiple 等给消费方绑组件
+10. **`defaultValue`**：有则导出；upload 未配置也固定 `[]`
+
+**`generateRules` 要点**：
+
+- `required`：upload 用 `trigger: 'change'`；其它 `blur`
+- `type === 'string'`：`minLength`/`maxLength` → rule 的 `min`/`max`；可有 `pattern`
+- `type === 'number'`：写 `min`/`max`（**当前未带 `type: 'number'`**，挂到字符串 input 上时 async-validator 可能按**长度**解释——已知坑）
+- `email` → `{ type: 'email', ... }`；`phone` → 国内手机号 `pattern` 字符串
+
+#### 步骤 3：`toJS`——对象变成可粘贴源码（关键创新点）
+
+`JSON.stringify` 只能出 JSON；业务要可 `import` 的模块，且 `visible` / 异步 `options` 常是函数，故用手工序列化。
+
+| 值类型 | 输出 |
+|--------|------|
+| null / undefined | `null` |
+| boolean / number | 字面量 |
+| 字符串且像代码（以 `(`、`async`、`function` 开头） | **不当字符串**，原样嵌入成真函数表达式 |
+| 普通字符串 | 单引号优先；含 `'` 则双引号，并转义 |
+| 数组 | 全是简单短值且行宽 &lt; 80 → 一行；否则多行缩进 |
+| 对象 | 过滤 `undefined`；合法标识符 key 不加引号，否则 `'中文key'`；递归 `toJS` |
+
+```javascript
+// JSON.stringify：{ "key": "value", "visible": "(form) => ..." }
+// toJS：         { key: 'value', visible: (form) => ... }
+
+if (isCodeExpression(value)) return value          // 函数体不套引号
+const key = isValidIdentifier(k) ? k : `'${k}'`    // 合法标识符不加引号
+```
+
+`isValidIdentifier`：`/^[a-zA-Z_$][a-zA-Z0-9_$]*$/`。
+
+**面试重点**：为什么不用 `JSON.stringify()`？JSON 里函数只能当字符串，运行时常要 `eval`；JS/TS 模块里函数应是真实代码，需自研序列化器区分「代码字符串」和「数据字符串」。
+
+#### 步骤 4：JS vs TS 只差外壳
+
+两者都是：`const config = generateFormConfig(...)` → `const body = toJS(config, 1)`。
+
+**JS**（`generateFormConfigJS`）：
+
+```js
+const formConfig = { ... }
+
+export default formConfig
+```
+
+**TS**（`generateFormConfigTS`）：
+
+- 文件头**内联** `ValidationRule` / `FieldConfig` / `FormConfig`（自包含，业务仓不必依赖本仓库类型）
+- `const formConfig: FormConfig = { ... }`
+- `export default formConfig`
+
+注意：内联类型里仍有 `columns: number`，而 `generateFormConfig` 当前未输出 `columns`（注释预留），类型与实值略不一致。
+
+同文件 `generateFormConfigJSON` 是同一 `config` 走 `JSON.stringify`，**没有** `toJS` 的函数还原能力。  
+后半的 `generateAsyncValidatorRules` / `generateFormLogicModule` 走 `collectFieldMeta`，**不是**导出 JS/TS 配置主路径。
+
+#### 消费侧提醒（面试可提）
+
+- Element Plus：按字段取 `field.rules` 挂到 `el-form-item`，或收成 `{ [key]: rules }`；不能把整份 `formConfig` 直接当 `el-form` 的 `rules`。
+- number 的 `min`/`max` 建议带 `type: 'number'`，且绑定值是 number / `el-input-number`。
+
 ---
+
 
 ## 第五阶段：理解属性面板和集成代码（1 小时）
 
