@@ -59,6 +59,8 @@ export function endExportRootLayout(root: HTMLElement | null, stage: HTMLElement
 export interface VerticalSpan {
   top: number
   bottom: number
+  /** Debug only: short text preview so you can tell which line this span is. */
+  quote?: string
 }
 
 /** Skip text inside annotation chrome / overlay when collecting paper text lines. */
@@ -157,6 +159,7 @@ export function mergeNearDuplicateSpans(
     .map((s) => ({
       top: Math.min(s.top, s.bottom),
       bottom: Math.max(s.top, s.bottom),
+      quote: s.quote,
     }))
     .sort((a, b) => a.top - b.top || a.bottom - b.bottom)
 
@@ -170,6 +173,7 @@ export function mergeNearDuplicateSpans(
     if (sameLine) {
       last.top = Math.min(last.top, cur.top)
       last.bottom = Math.max(last.bottom, cur.bottom)
+      if (!last.quote && cur.quote) last.quote = cur.quote
     } else {
       out.push({ ...cur })
     }
@@ -177,11 +181,18 @@ export function mergeNearDuplicateSpans(
   return out
 }
 
+/** Short preview for debug quote on text-line spans. */
+function debugQuoteFromText(raw: string, lineIndex: number): string {
+  const preview = raw.replace(/\s+/g, ' ').trim().slice(0, 24)
+  return `${preview}#${lineIndex}`
+}
+
 /**
  * Collect visual text-line boxes from paper content (CSS px, relative to `origin`).
  * Prefer `origin` = capture wrap so coordinates match the screenshot bitmap.
  * Skips text inside annotation chrome and inside unbreakable boxes.
  * Adjacent lines are NOT merged — only duplicate rects collapse.
+ * Each span may carry optional `quote` (text preview + line index) for debugging.
  */
 export function collectTextLineSpans(
   contentRoot: HTMLElement,
@@ -208,16 +219,19 @@ export function collectTextLineSpans(
     const pad = textLinePadPx(parent)
     const range = document.createRange()
     range.selectNodeContents(text)
+    let lineIndex = 0
     for (const rect of Array.from(range.getClientRects())) {
       if (rect.width <= 0 || rect.height <= 0) continue
       spans.push({
         top: rect.top - originRect.top - pad,
         bottom: rect.bottom - originRect.top + pad,
+        quote: debugQuoteFromText(raw, lineIndex),
       })
+      lineIndex += 1
     }
     current = walker.nextNode()
   }
-
+  console.log(spans)  
   return mergeNearDuplicateSpans(spans)
 }
 

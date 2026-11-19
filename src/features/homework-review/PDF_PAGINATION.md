@@ -1,6 +1,7 @@
 # 批注试卷 PDF 导出 · 分页策略
 
 举证实现：[`exportAnnotatedPdf.ts`](./exportAnnotatedPdf.ts)  
+面试口述稿（含逐步详解）：[PDF_EXPORT_INTERVIEW.md](./PDF_EXPORT_INTERVIEW.md)  
 面试对照：[ANNOTATION_INTERVIEW_QUESTIONS.md](../../ANNOTATION_INTERVIEW_QUESTIONS.md) Q21–Q23
 
 ## 产品规则
@@ -26,9 +27,10 @@
 ## 关键实现点
 
 1. **冻结 `maxPageCssPx`**：spacer 与 pack 共用，避免缝漂移  
-2. **`snapCutsOutsideProtectedSpans`**：切缝落在文字行或选项盒内部时，回退到该 span 的 `top`（避免半行 / 半框）  
-3. **整卷截图 + 像素裁切**：切缝 Y 与位图像素一一对应  
-4. **页码**：每页底部 canvas 绘制 `第 n / N 页`（避开 jsPDF 缺中文字体）
+2. **spacer 高度**：骑缝且能推时，在块前插空白，高 = `pageEnd - block.top`（详见面试稿 §3 第 5 步）  
+3. **`snapCutsOutsideProtectedSpans`**：切缝落在文字行或选项盒内部时，回退到该 span 的 `top`（避免半行 / 半框）  
+4. **整卷截图 + 像素裁切**：切缝 Y 与位图像素一一对应  
+5. **页码**：每页底部 canvas 绘制 `第 n / N 页`（避开 jsPDF 缺中文字体）
 
 ## 诚实边界
 

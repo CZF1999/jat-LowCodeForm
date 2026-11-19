@@ -206,8 +206,10 @@ describe('collectTextLineSpans', () => {
     const spans = collectTextLineSpans(content, wrap)
     expect(spans.length).toBeGreaterThanOrEqual(2)
     // rects at y=100/130 relative to wrap top 20 → local 80/110, ± by pad.
-    expect(spans[0]).toEqual({ top: 80 - pad, bottom: 98 + pad })
-    expect(spans[1]).toEqual({ top: 110 - pad, bottom: 128 + pad })
+    expect(spans[0]).toMatchObject({ top: 80 - pad, bottom: 98 + pad })
+    expect(spans[1]).toMatchObject({ top: 110 - pad, bottom: 128 + pad })
+    expect(spans[0].quote).toContain('#0')
+    expect(spans[1].quote).toContain('#1')
     // Adjacent lines must stay separate even if pads overlap.
     expect(spans[0].bottom).toBeGreaterThan(spans[1].top)
 
@@ -234,7 +236,9 @@ describe('collectTextLineSpans', () => {
     const pad = textLinePadPx(paper)
     const spans = collectTextLineSpans(content, wrap)
     expect(spans.length).toBe(1)
-    expect(spans[0]).toEqual({ top: 50 - pad, bottom: 66 + pad })
+    expect(spans[0]).toMatchObject({ top: 50 - pad, bottom: 66 + pad })
+    expect(spans[0].quote).toContain('试卷正文')
+    expect(spans[0].quote).toContain('#0')
 
     wrap.remove()
   })
